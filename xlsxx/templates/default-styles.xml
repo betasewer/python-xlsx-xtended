@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ssml:styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+	<numFmts count="4">
+		<numFmt numFmtId="164" formatCode="General"/>
+		<numFmt numFmtId="165" formatCode="yyyy/mm/dd\ h:mm:ss"/>
+		<numFmt numFmtId="166" formatCode="@"/>
+		<numFmt numFmtId="167" formatCode="yyyy/mm/dd"/>
+	</numFmts>
+	<fonts count="1">
+		<font>
+			<sz val="10"/>
+			<name val="Arial"/>
+			<family val="0"/>
+			<charset val="128"/>
+		</font>
+	</fonts>
+	<fills count="0">
+	</fills>
+	<borders count="0">
+	</borders>
+	<cellStyleXfs count="0">
+	</cellStyleXfs>
+	<cellXfs count="0">
+	</cellXfs>
+	<cellStyles count="0">
+	</cellStyles>
+</ssml:styleSheet>
