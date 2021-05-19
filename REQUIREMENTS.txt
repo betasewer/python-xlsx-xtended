@@ -1,2 +1,1 @@
 lxml>=3.1.0
-python-docx-extended>=0.1.0.0

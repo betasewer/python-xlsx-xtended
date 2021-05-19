@@ -1,4 +1,8 @@
 # encoding: utf-8
+"""
+@Extra-Requirements:
+    docxx
+"""
 
 __version__ = '0.0.1.0'
 
