@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-
+"""
+setuptools>=40.1.0
+"""
 from setuptools import setup, find_namespace_packages
 from codecs import open
 import os
@@ -35,7 +37,7 @@ setup(
     version=version,
     
     packages=find_namespace_packages(exclude=['tests', 'tests.*']),
-    package_data={'docxx': ['templates/*.xml', 'templates/*.docx']},
+    package_data={'xlsxx': ['templates/*.xml', 'templates/*.docx']},
     
     license=license,
     
