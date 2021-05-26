@@ -37,7 +37,7 @@ setup(
     version=version,
     
     packages=find_namespace_packages(exclude=['tests', 'tests.*']),
-    package_data={'xlsxx': ['templates/*.xml', 'templates/*.docx']},
+    package_data={'xlsxx': ['templates/*.xml', 'templates/*.xlsx']},
     
     license=license,
     
