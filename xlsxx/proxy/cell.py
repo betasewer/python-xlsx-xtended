@@ -34,19 +34,23 @@ class CellRow(ElementProxy):
         return Cell(elcell, self._element, self._workbook)
 
     def new_empties_until(self, column):
-        """ 空のセルを追加する """
+        """ 空のセルを複数追加する。
+        Params:
+            columnindex(int): カラム0座標
+        """
         cur = len(self._element.cell_lst)-1
         if cur >= column:
             return
-        for icol in range(column-cur):
-            self.add_cell(icol)
+        for i in range(column-cur):
+            self.add_cell(cur+i+1)
 
-    def add_cell(self, columnindex):
-        """
-        空のセルを追加する。
+    def add_cell(self, column):
+        """ 空のセルを追加する。
+        Params:
+            columnindex(int): カラム0座標
         """
         cell = self._element._add_cell()
-        cell.ref = coord_to_ref((self.ref-1, columnindex))
+        cell.ref = coord_to_ref((self.ref-1, column))
 
 """
 """

@@ -288,11 +288,11 @@ class Worksheet(ElementProxy):
         rmax, cmax = p2
         curmax = len(self._element.sheetdata.row_lst)-1 # 空の場合は-1になる
         # 空の行を追加する
-        for ri in range(rmax-curmax):
-            self.add_row(ri)
+        for i in range(rmax-curmax):
+            self.add_row(curmax+i+1)
         # 各行を列方向に進捗する
-        for ri in range(rmin, rmax+1):
-            self.row(ri).new_empties_until(cmax)
+        for i in range(rmin, rmax+1):
+            self.row(i).new_empties_until(cmax)
 
     def add_row(self, index):
         """
