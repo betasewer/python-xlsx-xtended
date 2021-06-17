@@ -63,8 +63,8 @@ class SmlSheetMainPart(XmlPart):
             return ss_part
             
     @property
-    def styles(self):
-        return self._styles_part.styles
+    def style_sheet(self):
+        return self._styles_part.style_sheet
         
     @property
     def _styles_part(self):
@@ -133,8 +133,14 @@ class SmlSharedStringsPart(XmlPart):
     def shared_strings(self):
         return SharedStrings(self.element, self)
     
-    def _add_pending_cell(self, cell):
+    def _add_pending_text(self, cell):
         self._pending_cells.append(cell)
+        index = len(self._pending_cells)-1
+        return index
+
+    def _get_pending_text(self, index):
+        cell = self._pending_cells[index]
+        return cell
 
     def before_marshal(self):
         self.shared_strings._finish_before_marshal(self._pending_cells)
@@ -159,5 +165,5 @@ class SmlStylesPart(XmlPart):
         return cls.new(package, element)
         
     @property
-    def stylesheet(self):
+    def style_sheet(self):
         return StyleSheet(self.element, self)

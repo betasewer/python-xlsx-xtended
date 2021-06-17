@@ -39,7 +39,13 @@ def index_to_column(index):
         m = q
     return "".join(reversed(digits))
 
+#
+#
 # セル参照
+#
+#
+
+# 正規表現
 re_cellref = re.compile("([A-Z]+)([0-9]+)")
 
 def ref_to_coord(ref):
@@ -83,6 +89,51 @@ def split_ref(ref):
         return m.group(1), m.group(2)
     return None, None
 
+def modify_ref(ref, row=None, col=None):
+    """
+    セル参照を修正して返す。
+    Params:
+        ref(str): もとのセル参照
+        row(str/int): 1ベース行番号文字/0ベース行番号
+        col(str/int): 列アルファベット/0ベース列番号
+    """
+    if ref:
+        r, c = split_ref(ref)
+    else:
+        r, c = "", ""
+
+    if row is not None:
+        if isinstance(row, str):
+            r = row
+        elif isinstance(row, int):
+            r = "{}".format(row + 1)
+
+    if col is not None:
+        if isinstance(col, str):
+            c = col
+        elif isinstance(col, int):
+            c = index_to_column(col)
+
+    return c + r
+
+#
+#
+# セル範囲参照
+#
+#
+def split_range_ref(ref):
+    """
+    セル参照範囲を開始と末尾参照に分割する。
+    Params:
+        ref(str):
+    Returns:
+        Tuple[str, str]:
+    """
+    beg, sep, end = ref.partition(":")
+    if not sep:
+        return None, None
+    return beg, end
+
 def range_ref_to_coord(ref):
     """
     範囲のセル参照から0ベース座標に変換する。
@@ -97,6 +148,46 @@ def range_ref_to_coord(ref):
     else:
         return ref_to_coord(c1), None
 
+def modify_range_ref(range, head=None, tail=None, headcol=None, tailcol=None, headrow=None, tailrow=None):
+    """
+    セル参照範囲を修正して返す。
+    Params:
+        range(str): もとのセル参照範囲
+        head(str): 開始セル参照
+        tail(str): 終了セル参照
+        headcol(str): 開始列アルファベット
+        tailcol(str): 終了列アルファベット
+        headrow(str): 開始1ベース行番号
+        tailrow(str): 終了1ベース行番号
+    """
+    h, t = split_range_ref(range)
+
+    if head is not None:
+        h = head
+    if tail is not None:
+        t = tail
+    
+    if headcol is not None and headrow is not None:
+        h = modify_ref("", headcol, headrow)
+    if tailcol is not None and tailrow is not None:
+        t = modify_ref("", tailcol, tailrow)
+    
+    if headcol is not None:
+        h = modify_ref(h, col=headcol)
+    if tailcol is not None:
+        t = modify_ref(t, col=tailcol)
+    if headrow is not None:
+        h = modify_ref(h, row=headrow)
+    if tailrow is not None:
+        t = modify_ref(t, row=tailrow)
+
+    return "{}:{}".format(h, t)
+
+#
+#
+# 整数座標組への変換インターフェース
+#
+#
 def get_coord(coord):
     """
     セル参照、または座標タプルを0ベース座標に分解する。
@@ -115,7 +206,7 @@ def get_range_coord(range, coord2=None, *, rownum=None, columnnum=None):
     """
     セル範囲参照、または座標の組を0ベース座標に分解する。
     Params:
-        range(str/Tuple): セル範囲参照／座標の組／左上セル参照／左上セル座標
+        range(str/Tuple): セル範囲参照／セル範囲座標の組／左上セル参照／左上セル座標
         coord2(str/Tuple): 右下セル参照／右下セル座標
         rownum(int): 左上からの行の増分
         columnnum(int): 左上からの列の増分
@@ -147,4 +238,4 @@ def get_range_coord(range, coord2=None, *, rownum=None, columnnum=None):
         return get_coord(range), get_coord(coord2)
 
 
-    
+

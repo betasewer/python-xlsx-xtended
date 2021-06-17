@@ -39,9 +39,12 @@ class SharedStrings(ElementProxy):
         newid = len(self._element.si_lst)-1
         return newid
     
-    def _add_pending_cell(self, cell):
-        self._part._add_pending_cell(cell)
+    def _add_pending_text(self, cell):
+        return self._part._add_pending_text(cell)
     
+    def _get_pending_text(self, id):
+        return self._part._get_pending_text(id)
+
     def _finish_before_marshal(self, pending_cells):
         # 新たに書き込まれたテキストを格納する
         for cell in pending_cells:

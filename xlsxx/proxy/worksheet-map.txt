@@ -1,0 +1,42 @@
+proxy    element
+------------------------------------------------------------
+sheet    ssml:sheetPr [0..1]    Worksheet Properties
+sheet.dimension    ssml:dimension [0..1]    Worksheet Dimensions
+view    ssml:sheetViews [0..1]    Sheet Views
+    ssml:sheetFormatPr [0..1]    Sheet Format Properties
+sheet    ssml:cols [0..*]    Column Information
+sheet    ssml:sheetData [1..1]    Sheet Data
+    ssml:sheetCalcPr [0..1]    Sheet Calculation Properties
+    ssml:sheetProtection [0..1]    Sheet Protection
+    ssml:protectedRanges [0..1]    Protected Ranges
+    ssml:scenarios [0..1]    Scenarios
+    ssml:autoFilter [0..1]    AutoFilter
+    ssml:sortState [0..1]    Sort State
+    ssml:dataConsolidate [0..1]    Data Consolidate
+    ssml:customSheetViews [0..1]    Custom Sheet Views
+    ssml:mergeCells [0..1]    Merge Cells
+    ssml:phoneticPr [0..1]    Phonetic Properties
+    ssml:conditionalFormatting [0..*]    Conditional Formatting
+    ssml:dataValidations [0..1]    Data Validations
+    ssml:hyperlinks [0..1]    Hyperlinks
+    ssml:printOptions [0..1]    Print Options
+    ssml:pageMargins [0..1]    Page Margins
+    ssml:pageSetup [0..1]    Page Setup Settings
+    ssml:headerFooter [0..1]    Header Footer Settings
+    ssml:rowBreaks [0..1]    Horizontal Page Breaks
+    ssml:colBreaks [0..1]    Vertical Page Breaks
+    ssml:customProperties [0..1]    Custom Properties
+    ssml:cellWatches [0..1]    Cell Watch Items
+    ssml:ignoredErrors [0..1]    Ignored Errors
+    ssml:smartTags [0..1]    Smart Tags
+    ssml:drawing [0..1]    Drawing
+    ssml:legacyDrawing [0..1]    Legacy Drawing
+    ssml:legacyDrawingHF [0..1]    Legacy Drawing Header Footer
+    ssml:picture [0..1]    Background Image
+    ssml:oleObjects [0..1]    OLE Objects
+    ssml:controls [0..1]    Embedded Controls
+    ssml:webPublishItems [0..1]    Web Publishing Items
+    ssml:tableParts [0..1]    Table Parts
+(shared)    ssml:extLst [0..1]    Future Feature Storage Area
+	
+	

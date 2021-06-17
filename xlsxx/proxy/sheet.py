@@ -9,7 +9,8 @@ from __future__ import (
 )
 
 from docxx.shared import ElementProxy, AttributeProperty
-from xlsxx.coord import ref_to_coord, coord_to_ref, range_ref_to_coord, column_to_index, split_ref, get_range_coord
+from docxx.element import remove_element, query
+from xlsxx.coord import ref_to_coord, coord_to_ref, range_ref_to_coord, column_to_index, get_range_coord, modify_range_ref
 from xlsxx.proxy.cell import Cell, CellRow, CellRange
 
 """
@@ -207,6 +208,35 @@ class Worksheet(ElementProxy):
         elrow = self._element.sheetdata.row_lst[row]
         return CellRow(elrow, self._workbook)
     
+    def minimize_dimension(self):
+        # セルと行の数を調べ、最小限の寸法を決める
+        lastrowref = None
+        lastrowoffset = 0
+        for row in self.rows:
+            empty = True
+            for cell in row.cells:
+                if not cell.empty: # 空文字列であっても要素が存在する場合は偽とする
+                    empty = False
+                    break
+            if empty:
+                break
+            lastrowref = row.ref
+            lastrowoffset += 1
+
+        if lastrowref is None:
+            return
+        
+        # ディメンジョンの修正
+        dim = self._element.dimension
+        if dim is not None:
+            dim.ref = modify_range_ref(dim.ref, tailrow=lastrowref)
+        
+        # 空の行を削除
+        remelems = self._element.sheetdata.row_lst[lastrowoffset:]
+        for elem in remelems:
+            remove_element(self._element.sheetdata, query(elem))
+
+    
     #
     # セルの取得
     #
@@ -228,7 +258,7 @@ class Worksheet(ElementProxy):
         else:
             return self.row(row).cell(column)
 
-    def range(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, orientation=None):
+    def range(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, orientation=None, stop=True):
         """
         矩形のセル範囲を作成する。
         Params:
@@ -240,7 +270,7 @@ class Worksheet(ElementProxy):
             CellRange:
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
-        return CellRange(self, p1, p2, orientation=orientation)
+        return CellRange(self, p1, p2, orientation=orientation, iterbreak=stop)
 
     def vertical_range(self, lefttop, length=None):
         """
@@ -253,11 +283,13 @@ class Worksheet(ElementProxy):
         """
         if length is None:
             tail = self.last_row
+            stop = True
         else:
             if length <= 0:
                 raise ValueError("長さは1以上必要です")
             tail = lefttop[0] + length - 1
-        return self.range(lefttop, (tail, lefttop[1]), orientation="v")
+            stop = False
+        return self.range(lefttop, (tail, lefttop[1]), orientation="v", stop=stop)
         
     def horizontal_range(self, lefttop, length=None):
         """
@@ -270,11 +302,13 @@ class Worksheet(ElementProxy):
         """
         if length is None:
             tail = self.last_column
+            stop = True
         else:
             if length <= 0:
                 raise ValueError("長さは1以上必要です")
             tail = lefttop[1] + length - 1
-        return self.range(lefttop, (lefttop[0], tail), orientation="h")    
+            stop = False
+        return self.range(lefttop, (lefttop[0], tail), orientation="h", stop=stop)    
     
     def allocate_range(self, lefttop, rightbottom=None):
         """

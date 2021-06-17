@@ -53,7 +53,7 @@ class Workbook(ElementProxy):
 
     def sheet(self, id=None, *, index=None, entry=None):
         if entry is not None:
-            wspart = self._part.related_parts.get(entry.rel_id)
+            wspart = self._part.related_parts.get(entry.rid)
             worksheet = wspart.worksheet(self, entry)
             return worksheet
         elif id is not None:

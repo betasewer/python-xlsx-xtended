@@ -6,5 +6,6 @@ tests/sample/*
 build/*
 dist/* 
 *.egg-info/*
+*.*.*
 dist.ps1
 how-to-customize-python-docx.txt
