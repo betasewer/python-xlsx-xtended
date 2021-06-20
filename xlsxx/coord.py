@@ -82,7 +82,7 @@ def split_ref(ref):
     Params:
         ref(str):
     Returns:
-        Tuple[str, str]: 
+        Tuple[str, str]: 列、行
     """
     m = re_cellref.match(ref)
     if m:
@@ -98,9 +98,9 @@ def modify_ref(ref, row=None, col=None):
         col(str/int): 列アルファベット/0ベース列番号
     """
     if ref:
-        r, c = split_ref(ref)
+        c, r = split_ref(ref)
     else:
-        r, c = "", ""
+        c, r = "", ""
 
     if row is not None:
         if isinstance(row, str):
@@ -142,7 +142,7 @@ def range_ref_to_coord(ref):
     Returns:
         Tuple: 座標のタプル Tuple[Tuple[int, int], Tuple[int, int]]
     """
-    c1, _, c2 = ref.partition(":")
+    c1, c2 = split_range_ref(ref)
     if c1 and c2:
         return ref_to_coord(c1), ref_to_coord(c2)
     else:

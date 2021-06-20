@@ -2,7 +2,7 @@ import datetime
 
 from docxx.shared import ElementProxy
 from xlsxx.oxml.simpletypes import ST_CellType
-from xlsxx.coord import ref_to_coord, coord_to_ref, modify_ref, split_ref
+from xlsxx.coord import index_to_column, ref_to_coord, coord_to_ref, modify_ref, split_ref
 from xlsxx.proxy.styles import (
     NUMVAL_TYPE_NUMBER,
     NUMVAL_TYPE_DATETIME,
@@ -68,11 +68,17 @@ class CellRow(ElementProxy):
     
     @property
     def ref(self):
-        return self._element.ref
+        if self._element.r is None:
+            raise ValueError("Bad row index")
+        return str(self._element.r) # 1ベース行番号
+    
+    @property
+    def _cells(self):
+        return self._element.c_lst
     
     @property
     def cells(self):
-        for elcell in self._element.cell_lst:
+        for elcell in self._cells:
             yield Cell(elcell, self._element, self._workbook)
         
     def get_range_cells(self, head, tail, *, emptynone=False):
@@ -85,19 +91,23 @@ class CellRow(ElementProxy):
         Returns:
             List[Cell]:
         """
-        celldict = {modify_ref("", str(self.ref), icol):i for i,icol in enumerate(range(head, tail+1))}
+        rowkey = self.ref
+        if not isinstance(rowkey, str):
+            raise ValueError("CellRow.ref has unexpected value")
+        celldict = {modify_ref("", rowkey, icol):i for i,icol in enumerate(range(head, tail+1))}
         cells = [None for _ in range(len(celldict))]
         empty = True
-        for c in self._element.cell_lst:
-            if c.ref in celldict:
-                cells[celldict[c.ref]] = Cell(c, self._element, self._workbook)
+        for c in self._cells:
+            cellref = c.r
+            if cellref in celldict:
+                cells[celldict[cellref]] = Cell(c, self._element, self._workbook)
                 empty = False
         if empty and emptynone:
             return None
         return cells
         
     def cell(self, column=0):
-        elcell = self._element.cell_lst[column]
+        elcell = self._cells[column]
         return Cell(elcell, self._element, self._workbook)
 
     def new_empties_until(self, column):
@@ -105,7 +115,7 @@ class CellRow(ElementProxy):
         Params:
             columnindex(int): カラム0座標
         """
-        cur = len(self._element.cell_lst)-1
+        cur = len(self._cells)-1
         if cur >= column:
             return
         for i in range(column-cur):
@@ -116,8 +126,8 @@ class CellRow(ElementProxy):
         Params:
             columnindex(int): カラム0座標
         """
-        cell = self._element._add_cell()
-        cell.ref = coord_to_ref((self.ref-1, column))
+        cell = self._element._add_c()
+        cell.ref = modify_ref("", row=self.ref, col=index_to_column(column))
 
 """
 """
@@ -129,19 +139,23 @@ class Cell(ElementProxy):
         self._v = None       # 内部値バッファ
         self._numfmt = None  # 書式バッファ
     
+    @property
+    def _type(self):
+        return self._element.t
+    
     def is_string(self):
-        return self._element.type in (
-            ST_CellType.shared_string, ST_CellType.string, ST_CellType.inline_string
+        return self._type in (
+            ST_CellType.SHARED_STRING, ST_CellType.STR, ST_CellType.INLINE_STR
         )
     
     def is_number(self):
-        return self._element.type == ST_CellType.number
+        return self._type == ST_CellType.NUMBER
     
     def is_boolean(self):
-        return self._element.type == ST_CellType.boolean
+        return self._type == ST_CellType.BOOLEAN
     
     def is_error(self):
-        return self._element.type == ST_CellType.error
+        return self._type == ST_CellType.ERROR
     
     def is_datetime(self):
         return self.is_number() and self.number_format.type == NUMVAL_TYPE_DATETIME
@@ -150,7 +164,7 @@ class Cell(ElementProxy):
         return self.is_number() and self.number_format.type == NUMVAL_TYPE_TIME
         
     def get_value(self):
-        if self._element.value is None:
+        if self._element.v is None:
             return None
         if self.is_string(): # 文字列型
             return self.get_text()
@@ -160,25 +174,25 @@ class Cell(ElementProxy):
             elif self.number_format.type == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
                 return self.get_time_value()
             else:                                               # 数値 - その他の型
-                v = self._element.value
+                v = self._element.v
                 return float(v.text)
         else: # ブール型、エラー型、空のセル
-            v = self._element.value
+            v = self._element.v
             if v is None:
                 return None
             return v.text
     
     def clear_value(self):
         # とりあえず空文字列を代入。これでいいのか？
-        self._element.type = ST_CellType.string
-        self._element.get_or_add_value().text = ""
+        self._element.t = ST_CellType.STR
+        self._element.get_or_add_v().text = ""
         self._v = None
     
     def get_text(self):
-        v = self._element.value
+        v = self._element.v
         if v is None:
             return ""
-        if self._element.type == ST_CellType.shared_string:
+        if self._element.t == ST_CellType.SHARED_STRING:
             if len(v.text)==0:
                 return ""
             if v.text[0] == "M":
@@ -197,24 +211,26 @@ class Cell(ElementProxy):
     
     def _finish_shared_string(self, shared_strings):
         # shared_stringのインデックスを確定させる
-        if self._element.type != ST_CellType.shared_string:
-            return # さらに変更がおこり上書きされている
+        if self._element.t != ST_CellType.SHARED_STRING:
+            return # さらに変更がおこり上書きされたので更新不要
         if self._v is None:
             raise ValueError("shared_stringのインデックスが不正です")
         strid = shared_strings.add_string(self._v)
-        self._element.get_or_add_value().text = str(strid)
+        self._element.get_or_add_v().text = str(strid)
     
     def get_datetime_value(self, time=WINDOWS_EXCEL_TIME):
-        fl = float(self._element.value.text)
+        fl = float(self._element.v.text)
         return time.convert_to_datetime(fl)
 
     def get_time_value(self, time=WINDOWS_EXCEL_TIME):
-        fl = float(self._element.value.text)
+        fl = float(self._element.v.text)
         return time.convert_to_time(fl)
     
     @property
     def raw(self):
-        v = self._element.value
+        v = self._element.v
+        if v is None:
+            return None
         return v.text
 
     @property
@@ -234,33 +250,27 @@ class Cell(ElementProxy):
     
     @text.setter
     def text(self, t):
-        self._element.type = ST_CellType.shared_string
-        if self._element.value is None:
-            self._element._add_value()
-        text = self._element.value.text
+        self._element.t = ST_CellType.SHARED_STRING
+        text = self._element.get_or_add_v().text
         if text and text[0] == "M":
             cell = self._book.shared_strings._get_pending_text(int(text[1:]))
             cell._v = t
         else:
             modid = self._book.shared_strings._add_pending_text(self)
             self._v = t
-            self._element.value.text = "M{}".format(modid)
-    
-    @property
-    def type(self):
-        return self._element.type
+            self._element.v.text = "M{}".format(modid)
 
     @property
     def empty(self):
-        return self._element.value is None
+        return self._element.v is None
 
     @property
     def ref(self):
-        return self._element.ref
+        return self._element.r
 
     @property
     def coord(self):
-        return ref_to_coord(self._element.ref)
+        return ref_to_coord(self.ref)
 
     @property
     def row(self):
@@ -272,14 +282,14 @@ class Cell(ElementProxy):
     
     @property
     def column_letter(self):
-        return split_ref(self._element.ref)[0]
+        return split_ref(self.ref)[0]
     
     #
     # スタイル
     #
     @property
     def style(self):
-        style_index = self._element.style
+        style_index = self._element.s
         return self._book.style_sheet.get_format(style_index)
     
     @property

@@ -124,13 +124,17 @@ class Worksheet(ElementProxy):
         return dim[1]
     
     @property
+    def _rows(self):
+        return self._element.sheetData.row_lst
+    
+    @property
     def last_row(self):
         """
         最も後ろにあるセルの行番号を返す
         Returns:
             int: 0ベースの行番号
         """
-        rowlst = self._element.sheetdata.row_lst
+        rowlst = self._rows
         if not rowlst:
             return 0
         return len(rowlst)-1
@@ -142,11 +146,18 @@ class Worksheet(ElementProxy):
         Returns:
             int: 0ベースの列番号
         """
-        rowlst = self._element.sheetdata.row_lst
+        rowlst = self._rows
         if not rowlst:
             return 0
-        maxlen = max(len(x.cell_lst) for x in rowlst)
+        maxlen = max(len(x.c_lst) for x in rowlst)
         return maxlen-1 if maxlen>0 else 0
+    
+    @property
+    def _columns(self):
+        cols = self._element.cols_lst
+        if not cols:
+            return []
+        return cols[0].col_lst # colsの全要素を結合する？
     
     @property
     def columns(self):
@@ -155,10 +166,7 @@ class Worksheet(ElementProxy):
         Returns:
             List[Column]
         """
-        cols = self._element.cols_lst
-        if not cols:
-            raise ValueError("no columns")
-        return [Column(x, self) for x in cols[0].col_lst]
+        return [Column(x, self) for x in self._columns]
     
     def column(self, column):
         """
@@ -170,10 +178,10 @@ class Worksheet(ElementProxy):
         """
         if isinstance(column, str):
             column = column_to_index(column)
-        cols = self._element.cols_lst[column]
-        if not cols:
-            raise ValueError("no columns")
-        return Column(cols[0].col_lst[column], self)
+        cols = self._columns
+        if column < 0 or len(cols) <= column:
+            raise IndexError("column")
+        return Column(cols[column], self)
     
     @property
     def rows(self):
@@ -184,7 +192,7 @@ class Worksheet(ElementProxy):
         Returns:
             List[CellRow]:
         """
-        return [CellRow(el, self._workbook) for el in self._element.sheetdata.row_lst]
+        return [CellRow(el, self._workbook) for el in self._rows]
     
     def get_range_rows(self, head, tail):
         """
@@ -195,7 +203,7 @@ class Worksheet(ElementProxy):
         Returns:
             List[CellRow]:
         """
-        return [CellRow(el, self._workbook) for el in self._element.sheetdata.row_lst[head:tail+1]]
+        return [CellRow(el, self._workbook) for el in self._rows[head:tail+1]]
 
     def row(self, row):
         """
@@ -205,8 +213,7 @@ class Worksheet(ElementProxy):
         Returns:
             CellRow:
         """
-        elrow = self._element.sheetdata.row_lst[row]
-        return CellRow(elrow, self._workbook)
+        return CellRow(self._rows[row], self._workbook)
     
     def minimize_dimension(self):
         # セルと行の数を調べ、最小限の寸法を決める
@@ -232,15 +239,13 @@ class Worksheet(ElementProxy):
             dim.ref = modify_range_ref(dim.ref, tailrow=lastrowref)
         
         # 空の行を削除
-        remelems = self._element.sheetdata.row_lst[lastrowoffset:]
-        for elem in remelems:
-            remove_element(self._element.sheetdata, query(elem))
+        for elem in self._rows[lastrowoffset:]:
+            remove_element(self._element.sheetData, query(elem))
 
     
     #
     # セルの取得
     #
-        
     def cell(self, row, column=None):
         """
         セルをひとつ取得する。
@@ -320,7 +325,7 @@ class Worksheet(ElementProxy):
         p1, p2 = get_range_coord(lefttop, rightbottom)
         rmin, _cmin = p1
         rmax, cmax = p2
-        curmax = len(self._element.sheetdata.row_lst)-1 # 空の場合は-1になる
+        curmax = len(self._rows)-1 # 空の場合は-1になる
         # 空の行を追加する
         for i in range(rmax-curmax):
             self.add_row(curmax+i+1)
@@ -331,6 +336,8 @@ class Worksheet(ElementProxy):
     def add_row(self, index):
         """
         空の行を追加する。
+        Params:
+            index(int): 0ベース列番号
         """
         row = self._element.sheetdata._add_row()
         row.ref = index + 1

@@ -7,7 +7,9 @@ Custom element classes that correspond to the document part, e.g.
 
 
 from docxx.oxml.simpletypes import (
-    XsdString, XsdStringEnumeration, XsdUnsignedInt, ST_RelationshipId, XsdToken
+    XsdString, XsdStringEnumeration, 
+    XsdUnsignedInt, XsdToken,
+    XsdHexBinary
 )
 
 #
@@ -15,58 +17,6 @@ from docxx.oxml.simpletypes import (
 # sml
 #
 #
-class ST_Xstring(XsdString):
-    pass
-    
-class ST_Ref(XsdString):
-    pass
-    
-class ST_CellRef(XsdString):
-    pass
-
-class ST_RefA(XsdString):
-    pass
-    
-class ST_Sqref():
-    """
-    Simple type: Reference Sequence
-    """
-    # list[itemType='ST_Ref']: None
-    
-class ST_Formula(ST_Xstring):
-    pass
-    
-class ST_UnsignedIntHex(XsdUnsignedInt): # xsd:hexBinary
-    """
-    Simple type: Hex Unsigned Integer
-    """
-    # length[value='4']: None
-    
-class ST_UnsignedShortHex(XsdUnsignedInt): # xsd:hexBinary
-    """
-    Simple type: Unsigned Short Hex
-    """
-    # length[value='2']: None
-    
-class ST_Guid(XsdToken):
-    """
-    Simple type: Globally Unique Identifier
-    """
-    # pattern[value='\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}']: None
-
-#
-# sheet.xsd
-#
-class ST_CellType(XsdStringEnumeration):
-    boolean = "b"
-    number = "n"
-    error = "e"
-    shared_string = "s"
-    string = "str"
-    inline_string = "inlineStr"
-    
-    _members = (boolean,number,error,shared_string,string,inline_string)
-
 class ST_CellSpan(XsdString):
     """
     Simple type: Cell Span Type
@@ -77,7 +27,19 @@ class ST_CellSpans():
     Simple type: Cell Spans
     """
     # list[itemType='ST_CellSpan']: None
-
+    
+class ST_CellType(XsdStringEnumeration):
+    """
+    Simple type: Cell Type
+    """
+    BOOLEAN = 'b'  # Boolean
+    NUMBER = 'n'  # Number
+    ERROR = 'e'  # Error
+    SHARED_STRING = 's'  # Shared String
+    STR = 'str'  # String
+    INLINE_STR = 'inlineStr'  # Inline String
+    _members = (BOOLEAN, NUMBER, ERROR, SHARED_STRING, STR, INLINE_STR,)
+    
 class ST_CellFormulaType(XsdStringEnumeration):
     """
     Simple type: Formula Type
@@ -323,33 +285,143 @@ class ST_PaneState(XsdStringEnumeration):
     FROZEN_SPLIT = 'frozenSplit'  # Frozen Split
     _members = (SPLIT, FROZEN, FROZEN_SPLIT,)
     
-
-#
-# sharedstringtable.xsd
-#
-class ST_PhoneticType(XsdStringEnumeration):
+class ST_Xstring(XsdString):
     """
-    Simple type: Phonetic Type
+    Simple type: Escaped String
     """
-    HALFWIDTH_KATAKANA = 'halfwidthKatakana'  # Half-Width Katakana
-    FULLWIDTH_KATAKANA = 'fullwidthKatakana'  # Full-Width Katakana
-    HIRAGANA = 'Hiragana'  # Hiragana
-    NO_CONVERSION = 'noConversion'  # No Conversion
-    _members = (HALFWIDTH_KATAKANA, FULLWIDTH_KATAKANA, HIRAGANA, NO_CONVERSION,)
     
-class ST_PhoneticAlignment(XsdStringEnumeration):
+class ST_CellRef(XsdString):
     """
-    Simple type: Phonetic Alignment Types
+    Simple type: Cell Reference
     """
-    NO_CONTROL = 'noControl'  # No Control
-    LEFT = 'left'  # Left Alignment
-    CENTER = 'center'  # Center Alignment
-    DISTRIBUTED = 'distributed'  # Distributed
-    _members = (NO_CONTROL, LEFT, CENTER, DISTRIBUTED,)
     
-#
-# styles.xsd
-#
+class ST_Ref(XsdString):
+    """
+    Simple type: Cell References
+    """
+    
+class ST_RefA(XsdString):
+    """
+    Simple type: Single Cell Reference
+    """
+    
+class ST_Sqref():
+    """
+    Simple type: Reference Sequence
+    """
+    # list[itemType='ST_Ref']: None
+    
+class ST_Formula(ST_Xstring):
+    """
+    Simple type: Formula
+    """
+    
+class ST_UnsignedIntHex(XsdHexBinary):
+    """
+    Simple type: Hex Unsigned Integer
+    """
+    # length[value='4']: None
+    
+class ST_UnsignedShortHex(XsdHexBinary):
+    """
+    Simple type: Unsigned Short Hex
+    """
+    # length[value='2']: None
+    
+class ST_Guid(XsdToken):
+    """
+    Simple type: Globally Unique Identifier
+    """
+    # pattern[value='\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}']: None
+    
+class ST_Visibility(XsdStringEnumeration):
+    """
+    Simple type: Visibility Types
+    """
+    VISIBLE = 'visible'  # Visible
+    HIDDEN = 'hidden'  # Hidden
+    VERY_HIDDEN = 'veryHidden'  # Very Hidden
+    _members = (VISIBLE, HIDDEN, VERY_HIDDEN,)
+    
+class ST_Comments(XsdStringEnumeration):
+    """
+    Simple type: Comment Display Types
+    """
+    COMM_NONE = 'commNone'  # No Comments
+    COMM_INDICATOR = 'commIndicator'  # Show Comment Indicator
+    COMM_IND_AND_COMMENT = 'commIndAndComment'  # Show Comment & Indicator
+    _members = (COMM_NONE, COMM_INDICATOR, COMM_IND_AND_COMMENT,)
+    
+class ST_Objects(XsdStringEnumeration):
+    """
+    Simple type: Object Display Types
+    """
+    ALL = 'all'  # All
+    PLACEHOLDERS = 'placeholders'  # Show Placeholders
+    NONE = 'none'  # None
+    _members = (ALL, PLACEHOLDERS, NONE,)
+    
+class ST_SheetState(XsdStringEnumeration):
+    """
+    Simple type: Sheet Visibility Types
+    """
+    VISIBLE = 'visible'  # Visible
+    HIDDEN = 'hidden'  # Hidden
+    VERY_HIDDEN = 'veryHidden'  # Very Hidden
+    _members = (VISIBLE, HIDDEN, VERY_HIDDEN,)
+    
+class ST_UpdateLinks(XsdStringEnumeration):
+    """
+    Simple type: Update Links Behavior Types
+    """
+    USER_SET = 'userSet'  # User Set
+    NEVER = 'never'  # Never Update Links
+    ALWAYS = 'always'  # Always Update Links
+    _members = (USER_SET, NEVER, ALWAYS,)
+    
+class ST_SmartTagShow(XsdStringEnumeration):
+    """
+    Simple type: Smart Tag Display Types
+    """
+    ALL = 'all'  # All
+    NONE = 'none'  # None
+    NO_INDICATOR = 'noIndicator'  # No Smart Tag Indicator
+    _members = (ALL, NONE, NO_INDICATOR,)
+    
+class ST_CalcMode(XsdStringEnumeration):
+    """
+    Simple type: Calculation Mode
+    """
+    MANUAL = 'manual'  # Manual Calculation Mode
+    AUTO = 'auto'  # Automatic
+    AUTO_NO_TABLE = 'autoNoTable'  # Automatic Calculation (No Tables)
+    _members = (MANUAL, AUTO, AUTO_NO_TABLE,)
+    
+class ST_RefMode(XsdStringEnumeration):
+    """
+    Simple type: Reference Mode
+    """
+    A1_MODE = 'A1'  # A1 Mode
+    R1_C1 = 'R1C1'  # R1C1 Reference Mode
+    _members = (A1_MODE, R1_C1,)
+    
+class ST_TargetScreenSize(XsdStringEnumeration):
+    """
+    Simple type: Target Screen Size Types
+    """
+    # 544x376 544 x 376 Resolution
+    # 640x480 640 x 480 Resolution
+    # 720x512 720 x 512 Resolution
+    # 800x600 800 x 600 Resolution
+    # 1024x768 1024 x 768 Resolution
+    # 1152x882 1152 x 882 Resolution
+    # 1152x900 1152 x 900 Resolution
+    # 1280x1024 1280 x 1024 Resolution
+    # 1600x1200 1600 x 1200 Resolution
+    # 1800x1440 1800 x 1440 Resolution
+    # 1920x1200 1920 x 1200 Resolution
+    _members = ('544x376', '640x480', '720x512', '800x600', '1024x768', '1152x882', '1152x900', '1280x1024', '1600x1200', '1800x1440', '1920x1200',)
+    
 class ST_BorderStyle(XsdStringEnumeration):
     """
     Simple type: Border Line Styles
@@ -521,95 +593,176 @@ class ST_UnderlineValues(XsdStringEnumeration):
     NONE = 'none'  # None
     _members = (SINGLE, DOUBLE, SINGLE_ACCOUNTING, DOUBLE_ACCOUNTING, NONE,)
     
-#
-# workbook.xsd
-# 
-class ST_Visibility(XsdStringEnumeration):
+class ST_PhoneticType(XsdStringEnumeration):
     """
-    Simple type: Visibility Types
+    Simple type: Phonetic Type
     """
-    VISIBLE = 'visible'  # Visible
-    HIDDEN = 'hidden'  # Hidden
-    VERY_HIDDEN = 'veryHidden'  # Very Hidden
-    _members = (VISIBLE, HIDDEN, VERY_HIDDEN,)
+    HALFWIDTH_KATAKANA = 'halfwidthKatakana'  # Half-Width Katakana
+    FULLWIDTH_KATAKANA = 'fullwidthKatakana'  # Full-Width Katakana
+    HIRAGANA = 'Hiragana'  # Hiragana
+    NO_CONVERSION = 'noConversion'  # No Conversion
+    _members = (HALFWIDTH_KATAKANA, FULLWIDTH_KATAKANA, HIRAGANA, NO_CONVERSION,)
     
-class ST_Comments(XsdStringEnumeration):
+class ST_PhoneticAlignment(XsdStringEnumeration):
     """
-    Simple type: Comment Display Types
+    Simple type: Phonetic Alignment Types
     """
-    COMM_NONE = 'commNone'  # No Comments
-    COMM_INDICATOR = 'commIndicator'  # Show Comment Indicator
-    COMM_IND_AND_COMMENT = 'commIndAndComment'  # Show Comment & Indicator
-    _members = (COMM_NONE, COMM_INDICATOR, COMM_IND_AND_COMMENT,)
+    NO_CONTROL = 'noControl'  # No Control
+    LEFT = 'left'  # Left Alignment
+    CENTER = 'center'  # Center Alignment
+    DISTRIBUTED = 'distributed'  # Distributed
+    _members = (NO_CONTROL, LEFT, CENTER, DISTRIBUTED,)
     
-class ST_Objects(XsdStringEnumeration):
+class ST_FilterOperator(XsdStringEnumeration):
     """
-    Simple type: Object Display Types
+    Simple type: Filter Operator
     """
-    ALL = 'all'  # All
-    PLACEHOLDERS = 'placeholders'  # Show Placeholders
+    EQUAL = 'equal'  # Equal
+    LESS_THAN = 'lessThan'  # Less Than
+    LESS_THAN_OR_EQUAL = 'lessThanOrEqual'  # Less Than Or Equal
+    NOT_EQUAL = 'notEqual'  # Not Equal
+    GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual'  # Greater Than Or Equal
+    GREATER_THAN = 'greaterThan'  # Greater Than
+    _members = (EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL, NOT_EQUAL, GREATER_THAN_OR_EQUAL, GREATER_THAN,)
+    
+class ST_DynamicFilterType(XsdStringEnumeration):
+    """
+    Simple type: Dynamic Filter
+    """
+    NULL = 'null'  # Null
+    ABOVE_AVERAGE = 'aboveAverage'  # Above Average
+    BELOW_AVERAGE = 'belowAverage'  # Below Average
+    TOMORROW = 'tomorrow'  # Tomorrow
+    TODAY = 'today'  # Today
+    YESTERDAY = 'yesterday'  # Yesterday
+    NEXT_WEEK = 'nextWeek'  # Next Week
+    THIS_WEEK = 'thisWeek'  # This Week
+    LAST_WEEK = 'lastWeek'  # Last Week
+    NEXT_MONTH = 'nextMonth'  # Next Month
+    THIS_MONTH = 'thisMonth'  # This Month
+    LAST_MONTH = 'lastMonth'  # Last Month
+    NEXT_QUARTER = 'nextQuarter'  # Next Quarter
+    THIS_QUARTER = 'thisQuarter'  # This Quarter
+    LAST_QUARTER = 'lastQuarter'  # Last Quarter
+    NEXT_YEAR = 'nextYear'  # Next Year
+    THIS_YEAR = 'thisYear'  # This Year
+    LAST_YEAR = 'lastYear'  # Last Year
+    YEAR_TO_DATE = 'yearToDate'  # Year To Date
+    # Q1 1st Quarter
+    # Q2 2nd Quarter
+    # Q3 3rd Quarter
+    # Q4 4th Quarter
+    # M1 1st Month
+    # M2 2nd Month
+    # M3 3rd Month
+    # M4 4th Month
+    # M5 5th Month
+    # M6 6th Month
+    # M7 7th Month
+    # M8 8th Month
+    # M9 9th Month
+    M10 = 'M10'  # 10th Month
+    M11 = 'M11'  # 11th Month
+    M12 = 'M12'  # 12th Month
+    _members = (NULL, ABOVE_AVERAGE, BELOW_AVERAGE, TOMORROW, TODAY, YESTERDAY, NEXT_WEEK, THIS_WEEK, LAST_WEEK, NEXT_MONTH, THIS_MONTH, LAST_MONTH, NEXT_QUARTER, THIS_QUARTER, LAST_QUARTER, NEXT_YEAR, THIS_YEAR, LAST_YEAR, YEAR_TO_DATE, 'Q1', 'Q2', 'Q3', 'Q4', 'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', M10, M11, M12,)
+    
+class ST_IconSetType(XsdStringEnumeration):
+    """
+    Simple type: Icon Set Type
+    """
+    # 3Arrows 3 Arrows
+    # 3ArrowsGray 3 Arrows  (Gray)
+    # 3Flags 3 Flags
+    # 3TrafficLights1 3 Traffic Lights
+    # 3TrafficLights2 3 Traffic Lights Black
+    # 3Signs 3 Signs
+    # 3Symbols 3 Symbols Circled
+    # 3Symbols2 3 Symbols
+    # 4Arrows 4 Arrows
+    # 4ArrowsGray 4 Arrows (Gray)
+    # 4RedToBlack 4 Red To Black
+    # 4Rating 4 Ratings
+    # 4TrafficLights 4 Traffic Lights
+    # 5Arrows 5 Arrows
+    # 5ArrowsGray 5 Arrows (Gray)
+    # 5Rating 5 Ratings Icon Set
+    # 5Quarters 5 Quarters
+    _members = ('3Arrows', '3ArrowsGray', '3Flags', '3TrafficLights1', '3TrafficLights2', '3Signs', '3Symbols', '3Symbols2', '4Arrows', '4ArrowsGray', '4RedToBlack', '4Rating', '4TrafficLights', '5Arrows', '5ArrowsGray', '5Rating', '5Quarters',)
+    
+class ST_SortBy(XsdStringEnumeration):
+    """
+    Simple type: Sort By
+    """
+    VALUE = 'value'  # Value
+    CELL_COLOR = 'cellColor'  # Sort by Cell Color
+    FONT_COLOR = 'fontColor'  # Sort by Font Color
+    ICON = 'icon'  # Sort by Icon
+    _members = (VALUE, CELL_COLOR, FONT_COLOR, ICON,)
+    
+class ST_SortMethod(XsdStringEnumeration):
+    """
+    Simple type: Sort Method
+    """
+    STROKE = 'stroke'  # Sort by Stroke
+    PIN_YIN = 'pinYin'  # PinYin Sort
     NONE = 'none'  # None
-    _members = (ALL, PLACEHOLDERS, NONE,)
+    _members = (STROKE, PIN_YIN, NONE,)
     
-class ST_SheetState(XsdStringEnumeration):
+class ST_CalendarType(XsdStringEnumeration):
     """
-    Simple type: Sheet Visibility Types
+    Simple type: Calendar Type
     """
-    VISIBLE = 'visible'  # Visible
-    HIDDEN = 'hidden'  # Hidden
-    VERY_HIDDEN = 'veryHidden'  # Very Hidden
-    _members = (VISIBLE, HIDDEN, VERY_HIDDEN,)
+    NONE = 'none'  # No Calendar Type
+    GREGORIAN = 'gregorian'  # Gregorian
+    GREGORIAN_US = 'gregorianUs'  # Gregorian (U.S.) Calendar
+    JAPAN = 'japan'  # Japanese Emperor Era Calendar
+    TAIWAN = 'taiwan'  # Taiwan Era Calendar
+    KOREA = 'korea'  # Korean Tangun Era Calendar
+    HIJRI = 'hijri'  # Hijri (Arabic Lunar) Calendar
+    THAI = 'thai'  # Thai Calendar
+    HEBREW = 'hebrew'  # Hebrew (Lunar) Calendar
+    GREGORIAN_ME_FRENCH = 'gregorianMeFrench'  # Gregorian Middle East French Calendar
+    GREGORIAN_ARABIC = 'gregorianArabic'  # Gregorian Arabic Calendar
+    GREGORIAN_XLIT_ENGLISH = 'gregorianXlitEnglish'  # Gregorian Transliterated English Calendar
+    GREGORIAN_XLIT_FRENCH = 'gregorianXlitFrench'  # Gregorian Transliterated French Calendar
+    _members = (NONE, GREGORIAN, GREGORIAN_US, JAPAN, TAIWAN, KOREA, HIJRI, THAI, HEBREW, GREGORIAN_ME_FRENCH, GREGORIAN_ARABIC, GREGORIAN_XLIT_ENGLISH, GREGORIAN_XLIT_FRENCH,)
     
-class ST_UpdateLinks(XsdStringEnumeration):
+class ST_DateTimeGrouping(XsdStringEnumeration):
     """
-    Simple type: Update Links Behavior Types
+    Simple type: Date Time Grouping
     """
-    USER_SET = 'userSet'  # User Set
-    NEVER = 'never'  # Never Update Links
-    ALWAYS = 'always'  # Always Update Links
-    _members = (USER_SET, NEVER, ALWAYS,)
+    YEAR = 'year'  # Group by Year
+    MONTH = 'month'  # Month
+    DAY = 'day'  # Day
+    HOUR = 'hour'  # Group by Hour
+    MINUTE = 'minute'  # Group by Minute
+    SECOND = 'second'  # Second
+    _members = (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND,)
     
-class ST_SmartTagShow(XsdStringEnumeration):
+class ST_PivotAreaType(XsdStringEnumeration):
     """
-    Simple type: Smart Tag Display Types
+    Simple type: Rule Type
     """
-    ALL = 'all'  # All
     NONE = 'none'  # None
-    NO_INDICATOR = 'noIndicator'  # No Smart Tag Indicator
-    _members = (ALL, NONE, NO_INDICATOR,)
+    NORMAL = 'normal'  # Normal
+    DATA = 'data'  # Data
+    ALL = 'all'  # All
+    ORIGIN = 'origin'  # Origin
+    BUTTON = 'button'  # Field Button
+    TOP_RIGHT = 'topRight'  # Top Right
+    _members = (NONE, NORMAL, DATA, ALL, ORIGIN, BUTTON, TOP_RIGHT,)
     
-class ST_CalcMode(XsdStringEnumeration):
+class ST_Axis(XsdStringEnumeration):
     """
-    Simple type: Calculation Mode
+    Simple type: PivotTable Axis
     """
-    MANUAL = 'manual'  # Manual Calculation Mode
-    AUTO = 'auto'  # Automatic
-    AUTO_NO_TABLE = 'autoNoTable'  # Automatic Calculation (No Tables)
-    _members = (MANUAL, AUTO, AUTO_NO_TABLE,)
+    AXIS_ROW = 'axisRow'  # Row Axis
+    AXIS_COL = 'axisCol'  # Column Axis
+    AXIS_PAGE = 'axisPage'  # Include Count Filter
+    AXIS_VALUES = 'axisValues'  # Values Axis
+    _members = (AXIS_ROW, AXIS_COL, AXIS_PAGE, AXIS_VALUES,)
+
     
-class ST_RefMode(XsdStringEnumeration):
-    """
-    Simple type: Reference Mode
-    """
-    A1_MODE = 'A1'  # A1 Mode
-    R1_C1 = 'R1C1'  # R1C1 Reference Mode
-    _members = (A1_MODE, R1_C1,)
-    
-class ST_TargetScreenSize(XsdStringEnumeration):
-    """
-    Simple type: Target Screen Size Types
-    """
-    s544X376 = '544x376'  # 544 x 376 Resolution
-    s640X480 = '640x480'  # 640 x 480 Resolution
-    s720X512 = '720x512'  # 720 x 512 Resolution
-    s800X600 = '800x600'  # 800 x 600 Resolution
-    s1024X768 = '1024x768'  # 1024 x 768 Resolution
-    s1152X882 = '1152x882'  # 1152 x 882 Resolution
-    s1152X900 = '1152x900'  # 1152 x 900 Resolution
-    s1280X1024 = '1280x1024'  # 1280 x 1024 Resolution
-    s1600X1200 = '1600x1200'  # 1600 x 1200 Resolution
-    s1800X1440 = '1800x1440'  # 1800 x 1440 Resolution
-    s1920X1200 = '1920x1200'  # 1920 x 1200 Resolution
-    _members = (s544X376, s640X480, s720X512, s800X600, s1024X768, s1152X882, s1152X900, s1280X1024, s1600X1200, s1800X1440, s1920X1200)
-    
+
+
 

@@ -21,7 +21,7 @@ from .workbook import (
     CT_SheetBackgroundPicture
 )
 from .sheet import (
-    CT_Worksheet, CT_SheetData, CT_SheetDimension, CT_Cols, CT_Col, CT_Row, CT_Cell, 
+    CT_Worksheet, CT_Dialogsheet, CT_Chartsheet, CT_SheetData, CT_SheetDimension, CT_Cols, CT_Col, CT_Row, CT_Cell, 
     CT_MergeCells, CT_MergeCell, CT_Cell, CT_CellFormula,     
     CT_Break, CT_CellSmartTag, CT_CellSmartTagPr, CT_CellSmartTags, CT_CellWatch, 
     CT_CellWatches, CT_CfRule, CT_Cfvo, CT_ColorScale, CT_ConditionalFormatting, 
@@ -33,12 +33,8 @@ from .sheet import (
     CT_PivotSelection, CT_PrintOptions, CT_ProtectedRange, CT_ProtectedRanges, 
     CT_Scenario, CT_Scenarios, CT_Selection, CT_SheetCalcPr, 
     CT_SheetFormatPr, CT_SheetPr, CT_SheetProtection, CT_SheetView, CT_SheetViews, CT_SmartTags, 
-    CT_TablePart, CT_TableParts, CT_WebPublishItem, CT_WebPublishItems
+    CT_TablePart, CT_TableParts, CT_WebPublishItem, CT_WebPublishItems,
 )
-# CT_AutoFilter sml-autofilter.xsd
-# CT_PivotArea sml-pivotTableShared.xsd
-# CT_SortState sml-autoFilter.xsd
-
 from .shared_strings import (
     CT_SST, CT_RST, CT_PhoneticPr, CT_PhoneticRun, 
     CT_RElt, CT_RPrElt
@@ -52,12 +48,17 @@ from .styles import (
     CT_NumFmt, CT_NumFmts, CT_PatternFill, CT_RgbColor, CT_Stylesheet, CT_TableStyle, CT_TableStyleElement, 
     CT_TableStyles, CT_UnderlineProperty, CT_VerticalAlignFontProperty, CT_Xf
 )
+from .auto_filter import (
+    CT_AutoFilter, CT_SortCondition, CT_ColorFilter, CT_CustomFilter, CT_CustomFilters, 
+    CT_SortState, CT_DateGroupItem, CT_DynamicFilter, CT_Filter, CT_FilterColumn, CT_Filters,
+    CT_IconFilter, CT_Top10
+)
+from .pivot_table import (
+    CT_PivotArea, CT_PivotAreaReferences, CT_PivotAreaReference, CT_Index
+)
 from .shared import (
     CT_Xstring, CT_XStringElement,
     CT_Extension, CT_ExtensionList
-)
-from .simpletypes import (
-    ST_Formula
 )
 
 from docxx.oxml import register_element_cls, extend_nsmap, parse_xml
@@ -67,10 +68,10 @@ extend_nsmap({
 parse_xml = parse_xml # エイリアス
 
 
-# sheet.xsd
+# sheet
 register_element_cls('ssml:worksheet', CT_Worksheet)
-#register_element_cls('ssml:chartsheet', CT_Chartsheet)
-#register_element_cls('ssml:dialogsheet', CT_Dialogsheet)
+register_element_cls('ssml:chartsheet', CT_Chartsheet)
+register_element_cls('ssml:dialogsheet', CT_Dialogsheet)
 register_element_cls('ssml:sheetPr', CT_SheetPr)
 register_element_cls('ssml:dimension', CT_SheetDimension)
 register_element_cls('ssml:sheetViews', CT_SheetViews)
@@ -78,8 +79,8 @@ register_element_cls('ssml:sheetFormatPr', CT_SheetFormatPr)
 register_element_cls('ssml:cols', CT_Cols)
 register_element_cls('ssml:sheetData', CT_SheetData)
 register_element_cls('ssml:sheetProtection', CT_SheetProtection)
-#register_element_cls('ssml:autoFilter', CT_AutoFilter)
-#register_element_cls('ssml:sortState', CT_SortState)
+register_element_cls('ssml:autoFilter', CT_AutoFilter)
+register_element_cls('ssml:sortState', CT_SortState)
 register_element_cls('ssml:dataConsolidate', CT_DataConsolidate)
 register_element_cls('ssml:customSheetViews', CT_CustomSheetViews)
 register_element_cls('ssml:phoneticPr', CT_PhoneticPr)
@@ -121,7 +122,7 @@ register_element_cls('ssml:sheetView', CT_SheetView)
 register_element_cls('ssml:pane', CT_Pane)
 register_element_cls('ssml:selection', CT_Selection)
 register_element_cls('ssml:pivotSelection', CT_PivotSelection)
-#register_element_cls('ssml:pivotArea', CT_PivotArea)
+register_element_cls('ssml:pivotArea', CT_PivotArea)
 register_element_cls('ssml:brk', CT_Break)
 register_element_cls('ssml:dataRefs', CT_DataRefs)
 register_element_cls('ssml:dataRef', CT_DataRef)
@@ -131,7 +132,7 @@ register_element_cls('ssml:cellSmartTag', CT_CellSmartTag)
 register_element_cls('ssml:cellSmartTagPr', CT_CellSmartTagPr)
 register_element_cls('ssml:customSheetView', CT_CustomSheetView)
 register_element_cls('ssml:dataValidation', CT_DataValidation)
-#register_element_cls('ssml:formula1', ST_Formula) 
+#register_element_cls('ssml:formula1', ST_Formula) ElementBaseを継承していないので登録できない
 #register_element_cls('ssml:formula2', ST_Formula) 
 #register_element_cls('ssml:formula', ST_Formula)
 register_element_cls('ssml:cfRule', CT_CfRule)
@@ -158,7 +159,7 @@ register_element_cls('ssml:control', CT_Control)
 register_element_cls('ssml:ignoredError', CT_IgnoredError)
 register_element_cls('ssml:tablePart', CT_TablePart)
 
-# sharedStringTable.xsd
+# shared-string
 register_element_cls('ssml:sst',        CT_SST)
 register_element_cls('ssml:si',         CT_RST)
 register_element_cls('ssml:t',          CT_Xstring)
@@ -167,7 +168,7 @@ register_element_cls('ssml:r',          CT_RElt)
 register_element_cls('ssml:rPh',        CT_PhoneticRun)
 register_element_cls('ssml:phoneticPr', CT_PhoneticPr)
 
-# styles.xsd
+# styles
 register_element_cls('ssml:styleSheet', CT_Stylesheet)
 register_element_cls('ssml:numFmts', CT_NumFmts)
 register_element_cls('ssml:fonts', CT_Fonts)
@@ -235,7 +236,7 @@ register_element_cls('ssml:u', CT_UnderlineProperty)
 register_element_cls('ssml:vertAlign', CT_VerticalAlignFontProperty)
 register_element_cls('ssml:scheme', CT_FontScheme)
 
-# workbook.xsd
+# workbook
 register_element_cls('ssml:workbook', CT_Workbook)
 register_element_cls('ssml:fileVersion', CT_FileVersion)
 register_element_cls('ssml:fileSharing', CT_FileSharing)
@@ -265,5 +266,22 @@ register_element_cls('ssml:pivotCache', CT_PivotCache)
 register_element_cls('ssml:functionGroup', CT_FunctionGroup)
 register_element_cls('ssml:webPublishObject', CT_WebPublishObject)
 
+# auto_filter
+register_element_cls('ssml:filterColumn', CT_FilterColumn)
+register_element_cls('ssml:filters', CT_Filters)
+register_element_cls('ssml:top10', CT_Top10)
+register_element_cls('ssml:customFilters', CT_CustomFilters)
+register_element_cls('ssml:dynamicFilter', CT_DynamicFilter)
+register_element_cls('ssml:colorFilter', CT_ColorFilter)
+register_element_cls('ssml:iconFilter', CT_IconFilter)
+register_element_cls('ssml:filter', CT_Filter)
+register_element_cls('ssml:dateGroupItem', CT_DateGroupItem)
+register_element_cls('ssml:customFilter', CT_CustomFilter)
+register_element_cls('ssml:sortCondition', CT_SortCondition)
+
+# pivot_table
+register_element_cls('ssml:references', CT_PivotAreaReferences)
+register_element_cls('ssml:reference', CT_PivotAreaReference)
+register_element_cls('ssml:x', CT_Index)
 
 

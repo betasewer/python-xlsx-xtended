@@ -61,6 +61,19 @@ class CT_RPrElt(BaseOxmlElement):
     """
     Complex type: 
     """
-    # choice[maxOccurs='unbounded']: 
-      
+    rFont = ZeroOrOne('ssml:rFont') # Font
+    charset = ZeroOrOne('ssml:charset') # Character Set
+    family = ZeroOrOne('ssml:family') # Font Family
+    b = ZeroOrOne('ssml:b') # Bold
+    i = ZeroOrOne('ssml:i') # Italic
+    strike = ZeroOrOne('ssml:strike') # Strike Through
+    outline = ZeroOrOne('ssml:outline') # Outline
+    shadow = ZeroOrOne('ssml:shadow') # Shadow
+    condense = ZeroOrOne('ssml:condense') # Condense
+    extend = ZeroOrOne('ssml:extend') # Extend
+    color = ZeroOrOne('ssml:color') # Text Color
+    sz = ZeroOrOne('ssml:sz') # Font Size
+    u = ZeroOrOne('ssml:u') # Underline
+    vertAlign = ZeroOrOne('ssml:vertAlign') # Vertical Alignment
+    scheme = ZeroOrOne('ssml:scheme') # Font Scheme
     
