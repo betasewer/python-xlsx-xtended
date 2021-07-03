@@ -1,6 +1,6 @@
 # encoding: utf-8
-"""
-@Extra-Requirements:
+""" @module
+Extra-Requirements:
     docxx
 """
 

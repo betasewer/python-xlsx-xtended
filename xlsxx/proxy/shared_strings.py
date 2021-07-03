@@ -53,6 +53,12 @@ class SharedStrings(ElementProxy):
         c = len(self._element.si_lst)
         self._element.count = c
         self._element.uniqueCount = c
+    
+    def fetch(self):
+        items = {}
+        for i, sitem in enumerate(self.items):
+            items[i] = sitem.text
+        return items
 
 
 class StringItem(ElementProxy):

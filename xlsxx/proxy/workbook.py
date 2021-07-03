@@ -58,7 +58,7 @@ class Workbook(ElementProxy):
             return worksheet
         elif id is not None:
             for elsheet in self._element.sheets:
-                if elsheet.id == id:
+                if elsheet.sheetId == id:
                     return self.sheet(entry=elsheet)
         elif index is not None:
             for i, elsheet in enumerate(self._element.sheets):
@@ -80,6 +80,14 @@ class Workbook(ElementProxy):
     @property
     def shared_strings(self):
         return self._part.shared_strings
+    
+    def fetch_shared_strings(self):
+        """ 
+        shared_stringsの全内容を辞書に落とし込む。
+        Returns:
+            Dict[int, str]:
+        """
+        return self.shared_strings.fetch()
         
     @property
     def style_sheet(self):

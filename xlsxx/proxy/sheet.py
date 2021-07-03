@@ -64,7 +64,7 @@ class Worksheet(ElementProxy):
         super(Worksheet, self).__init__(element)
         self._part = part
         self._workbook = workbook
-        self._entry = entry
+        self._entry = entry # CT_Sheet
 
     @property
     def workbook(self):
@@ -89,8 +89,12 @@ class Worksheet(ElementProxy):
         self._entry.name = n
     
     @property
-    def rId(self):
-        return self._entry.rel_id
+    def id(self):
+        return self._entry.sheetId
+    
+    @property
+    def relid(self):
+        return self._entry.rid
     
     @property
     def dimension(self):
@@ -199,12 +203,15 @@ class Worksheet(ElementProxy):
         範囲内の行オブジェクトを取得する。
         Params:
             head(int): 開始インデックス
-            tail(int): 最終インデックス（含む）
+            tail(int/None): 最終インデックス（含む）／最後まで
         Returns:
             List[CellRow]:
         """
-        return [CellRow(el, self._workbook) for el in self._rows[head:tail+1]]
-
+        if tail is None:
+            last = None
+        else:
+            last = tail + 1
+        return [CellRow(el, self._workbook) for el in self._rows[head:last]]
     def row(self, row):
         """
         行を表すオブジェクトを取得する。
@@ -213,6 +220,8 @@ class Worksheet(ElementProxy):
         Returns:
             CellRow:
         """
+        if row < 0 or len(self._rows) <= row:
+            return None
         return CellRow(self._rows[row], self._workbook)
     
     def minimize_dimension(self):

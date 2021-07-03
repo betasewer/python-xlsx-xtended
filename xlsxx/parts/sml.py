@@ -144,6 +144,7 @@ class SmlSharedStringsPart(XmlPart):
 
     def before_marshal(self):
         self.shared_strings._finish_before_marshal(self._pending_cells)
+        self._pending_cells.clear()
 
 
 class SmlStylesPart(XmlPart):    

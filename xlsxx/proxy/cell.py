@@ -107,6 +107,8 @@ class CellRow(ElementProxy):
         return cells
         
     def cell(self, column=0):
+        if column < 0 or len(self._cells) <= column:
+            return None
         elcell = self._cells[column]
         return Cell(elcell, self._element, self._workbook)
 
@@ -188,7 +190,12 @@ class Cell(ElementProxy):
         self._element.get_or_add_v().text = ""
         self._v = None
     
-    def get_text(self):
+    def get_text(self, shared_strings_map=None):
+        """ 
+        文字列の値を取り出す
+        Params:
+            *shared_strings_map(Dict[int, str]): あらかじめ取得済みの文字列マップ 
+        """
         v = self._element.v
         if v is None:
             return ""
@@ -200,12 +207,15 @@ class Cell(ElementProxy):
                 cell = self._book.shared_strings._get_pending_text(int(v.text[1:]))
                 return cell._v
             else:
-                # shared-stringのテーブルから読み込む
                 index = int(v.text)
-                si = self._book.shared_strings.get_item(index)
-                if si is None:
-                    return ""
-                return si.text
+                if shared_strings_map:
+                    return shared_strings_map.get(index, "")
+                else:
+                    # shared-stringのテーブルから読み込む   
+                    si = self._book.shared_strings.get_item(index)
+                    if si is None:
+                        return ""
+                    return si.text
         else:
             return v.text
     
@@ -246,6 +256,8 @@ class Cell(ElementProxy):
         v = self.value
         if v is None:
             return ""
+        if isinstance(v, str):
+            return v
         return str(v)
     
     @text.setter
