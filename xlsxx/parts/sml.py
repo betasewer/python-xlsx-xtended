@@ -95,6 +95,12 @@ class SmlSheetMainPart(XmlPart):
         copy_part(self.package, destpackage, destpackage)
         # 新しいワークブック
         return destpackage.main_document_part
+    
+    def fetch_textmap(self):
+        """
+        ワークブック内の文字列を全て取得する。
+        """
+        return self.shared_strings.fetch_text()
 
 
 #
@@ -133,14 +139,15 @@ class SmlSharedStringsPart(XmlPart):
     def shared_strings(self):
         return SharedStrings(self.element, self)
     
-    def _add_pending_text(self, cell):
-        self._pending_cells.append(cell)
-        index = len(self._pending_cells)-1
+    def _set_pending_text(self, index, cell, text):
+        if index == -1:
+            self._pending_cells.append((cell, text))
+            index = len(self._pending_cells)-1
         return index
 
     def _get_pending_text(self, index):
-        cell = self._pending_cells[index]
-        return cell
+        cell, text = self._pending_cells[index]
+        return cell, text
 
     def before_marshal(self):
         self.shared_strings._finish_before_marshal(self._pending_cells)

@@ -32,6 +32,22 @@ class SharedStrings(ElementProxy):
         if 0<=index and index<len(sis):
             return sis[index]
         return None
+    
+    def get_text(self, index):
+        """ 
+        エントリオブジェクトを生成せずテキストを取得する
+        要素が無い場合やNoneは空文字になる
+        """
+        silst = self._element.si_lst
+        if 0<=index and index<len(silst):
+            sielem = silst[index]
+            t = sielem.t
+            if t is None:
+                return "".join([r.t.text for r in sielem.r_lst])
+            if t.text is None:
+                return ""
+            return t.text
+        return ""
 
     def add_string(self, string):
         si = StringItem(self._element._add_si())
@@ -39,26 +55,28 @@ class SharedStrings(ElementProxy):
         newid = len(self._element.si_lst)-1
         return newid
     
-    def _add_pending_text(self, cell):
-        return self._part._add_pending_text(cell)
-    
     def _get_pending_text(self, id):
         return self._part._get_pending_text(id)
+    
+    def _set_pending_text(self, id, cell, text):
+        # id == -1 で末尾に追加
+        return self._part._set_pending_text(id, cell, text)
 
     def _finish_before_marshal(self, pending_cells):
         # 新たに書き込まれたテキストを格納する
-        for cell in pending_cells:
-            cell._finish_shared_string(self)
+        for cell, text in pending_cells:
+            cell._finish_shared_string(self, text)
         
         c = len(self._element.si_lst)
         self._element.count = c
         self._element.uniqueCount = c
     
-    def fetch(self):
-        items = {}
-        for i, sitem in enumerate(self.items):
-            items[i] = sitem.text
-        return items
+    def fetch_text(self):
+        # 全のテキストを取り出す
+        texts = {}
+        for i in range(len(self._element.si_lst)):
+            texts[i] = self.get_text(i)
+        return texts
 
 
 class StringItem(ElementProxy):

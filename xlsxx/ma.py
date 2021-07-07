@@ -56,4 +56,12 @@ class ExcelFile(BasicLoadFile):
             Any:
         """
         return self.load().workbook
+    
+    def document(self):
+        """ @method
+        ドキュメントを返す。
+        Returns:
+            Any: 
+        """
+        return self.load()
         

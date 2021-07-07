@@ -81,14 +81,6 @@ class Workbook(ElementProxy):
     def shared_strings(self):
         return self._part.shared_strings
     
-    def fetch_shared_strings(self):
-        """ 
-        shared_stringsの全内容を辞書に落とし込む。
-        Returns:
-            Dict[int, str]:
-        """
-        return self.shared_strings.fetch()
-        
     @property
     def style_sheet(self):
         return self._part.style_sheet

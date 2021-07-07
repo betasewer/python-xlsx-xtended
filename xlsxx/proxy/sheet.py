@@ -7,11 +7,12 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+from typing import Iterable
 
 from docxx.shared import ElementProxy, AttributeProperty
 from docxx.element import remove_element, query
 from xlsxx.coord import ref_to_coord, coord_to_ref, range_ref_to_coord, column_to_index, get_range_coord, modify_range_ref
-from xlsxx.proxy.cell import Cell, CellRow, CellRange
+from xlsxx.proxy.cell import Cell, CellRow, CellRange, get_range_text
 
 """
 """
@@ -212,6 +213,7 @@ class Worksheet(ElementProxy):
         else:
             last = tail + 1
         return [CellRow(el, self._workbook) for el in self._rows[head:last]]
+    
     def row(self, row):
         """
         行を表すオブジェクトを取得する。
@@ -285,6 +287,20 @@ class Worksheet(ElementProxy):
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
         return CellRange(self, p1, p2, orientation=orientation, iterbreak=stop)
+    
+    def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, orientation=None, stop=True):
+        """
+        矩形のセル範囲のテキストを取得する。
+        Params:
+            lefttop(Tuple/str): 矩形範囲の左上のセル
+            rightbottom(Tuple/str): 矩形範囲の右下のセル（境界を含む）
+            rownum(int): 左上からの行の増分
+            columnnum(int): 左上からの列の増分
+        Returns:
+            List[Str]:
+        """
+        p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
+        return get_range_text(self, p1, p2, orientation=orientation, iterbreak=stop)
 
     def vertical_range(self, lefttop, length=None):
         """
@@ -295,15 +311,20 @@ class Worksheet(ElementProxy):
         Returns:
             CellRange:
         """
-        if length is None:
-            tail = self.last_row
-            stop = True
-        else:
-            if length <= 0:
-                raise ValueError("長さは1以上必要です")
-            tail = lefttop[0] + length - 1
-            stop = False
+        tail, stop = _vertical_tail(self, lefttop, length)
         return self.range(lefttop, (tail, lefttop[1]), orientation="v", stop=stop)
+    
+    def get_vertical_range_text(self, lefttop, length=None):
+        """
+        開始点から縦1列の範囲のテキストを取得する。
+        Params:
+            lefttop(Tuple/str): 開始点のセル
+            length(int): 増分
+        Returns:
+            List[Str]:
+        """
+        tail, stop = _vertical_tail(self, lefttop, length)
+        return self.get_range_text(lefttop, (tail, lefttop[1]), orientation="v", stop=stop)
         
     def horizontal_range(self, lefttop, length=None):
         """
@@ -312,17 +333,22 @@ class Worksheet(ElementProxy):
             lefttop(Tuple/str): 開始点のセル
             length(int): 増分
         Returns:
-            CellRange
+            CellRange:
         """
-        if length is None:
-            tail = self.last_column
-            stop = True
-        else:
-            if length <= 0:
-                raise ValueError("長さは1以上必要です")
-            tail = lefttop[1] + length - 1
-            stop = False
+        tail, stop = _horizontal_tail(self, lefttop, length)
         return self.range(lefttop, (lefttop[0], tail), orientation="h", stop=stop)    
+    
+    def get_horizontal_range_text(self, lefttop, length=None):
+        """
+        開始点から横1行の範囲のテキストを取得する。
+        Params:
+            lefttop(Tuple/str): 開始点のセル
+            length(int): 増分
+        Returns:
+            List[Str]:
+        """
+        tail, stop = _horizontal_tail(self, lefttop, length)
+        return self.get_range_text(lefttop, (lefttop[0], tail), orientation="h", stop=stop)    
     
     def allocate_range(self, lefttop, rightbottom=None):
         """
@@ -350,6 +376,32 @@ class Worksheet(ElementProxy):
         """
         row = self._element.sheetdata._add_row()
         row.ref = index + 1
+
+#
+#
+#
+def _vertical_tail(proxy, lefttop, length):
+    if length is None:
+        tail = proxy.last_row
+        stop = True
+    else:
+        if length <= 0:
+            raise ValueError("長さは1以上必要です")
+        tail = lefttop[0] + length - 1
+        stop = False
+    return tail, stop
+
+def _horizontal_tail(proxy, lefttop, length):
+    if length is None:
+        tail = proxy.last_column
+        stop = True
+    else:
+        if length <= 0:
+            raise ValueError("長さは1以上必要です")
+        tail = lefttop[1] + length - 1
+        stop = False
+    return tail, stop
+
 
 """
 """

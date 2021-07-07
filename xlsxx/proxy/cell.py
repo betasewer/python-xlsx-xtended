@@ -57,7 +57,7 @@ EPOCH1904 = datetime.datetime(1904, 1, 1)   # Excel for mac: 2008 までは1904�
 WINDOWS_EXCEL_TIME = EpochTime(EPOCH1899, leap1900=True) # 1900年うるう年バグがある
 OLD_MAC_EXCEL_TIME = EpochTime(EPOCH1904)
 OTHER_APP_TIME = EpochTime(EPOCH1899)  # LibreOffice
-
+TARGET_TIME = WINDOWS_EXCEL_TIME
 
 """
 """
@@ -91,20 +91,10 @@ class CellRow(ElementProxy):
         Returns:
             List[Cell]:
         """
-        rowkey = self.ref
-        if not isinstance(rowkey, str):
-            raise ValueError("CellRow.ref has unexpected value")
-        celldict = {modify_ref("", rowkey, icol):i for i,icol in enumerate(range(head, tail+1))}
-        cells = [None for _ in range(len(celldict))]
-        empty = True
-        for c in self._cells:
-            cellref = c.r
-            if cellref in celldict:
-                cells[celldict[cellref]] = Cell(c, self._element, self._workbook)
-                empty = False
-        if empty and emptynone:
+        cells = get_row_range_cell(self.ref, self._element, head, tail, emptynone=emptynone)
+        if cells is None:
             return None
-        return cells
+        return [Cell(c, self._element, self._workbook) if c is not None else None for c in cells]
         
     def cell(self, column=0):
         if column < 0 or len(self._cells) <= column:
@@ -131,6 +121,99 @@ class CellRow(ElementProxy):
         cell = self._element._add_c()
         cell.ref = modify_ref("", row=self.ref, col=index_to_column(column))
 
+#
+def get_row_range_cell(rowkey, element, head, tail, emptynone):
+    if not isinstance(rowkey, str):
+        raise ValueError("CellRow.ref has unexpected value")
+    celldict = {modify_ref("", rowkey, icol):i for i,icol in enumerate(range(head, tail+1))}
+    cells = [None for _ in range(len(celldict))]
+    empty = True
+    for c in element.c_lst:
+        cellref = c.r
+        if cellref in celldict:
+            cells[celldict[cellref]] = c
+            empty = False
+    if empty and emptynone:
+        return None
+    return cells
+
+#
+#
+# セルの実装関数
+#
+#
+def get_cell_value(element, book):
+    """
+    Params:
+        element(Element): 要素
+        book(Proxy): ワークブック
+    """
+    if element.v is None:
+        return None
+    celltype = element.t
+    if celltype in (ST_CellType.SHARED_STRING, ST_CellType.STR, ST_CellType.INLINE_STR): # 文字列型
+        return get_cell_text(element)
+    elif celltype == ST_CellType.NUMBER:
+        if get_cell_number_format(element, book).type == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
+            return get_cell_datetime_value(element)
+        elif get_cell_number_format(element, book).type == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
+            return get_cell_time_value(element)
+        else:                                               # 数値 - その他の型
+            v = element.v
+            return float(v.text)
+    else: # ブール型、エラー型、空のセル
+        v = element.v
+        if v is None:
+            return None
+        return v.text
+
+def get_cell_text(element, book, shared_strings_map=None):
+    """ 
+    文字列の値を取り出す
+    Params:
+        element(Element): 要素 
+        book(Proxy): ワークブックの要素
+        *shared_strings_map(Dict[int, str]): あらかじめ取得済みの文字列マップ 
+    """
+    v = element.v
+    if v is None:
+        return ""
+    if element.t == ST_CellType.SHARED_STRING:
+        if len(v.text)==0:
+            return ""
+        if v.text[0] == "M":
+            # 一度変更されたテキストを読み込む
+            cell, t = book.shared_strings._get_pending_text(int(v.text[1:]))
+            return t
+        else:
+            index = int(v.text)
+            if shared_strings_map:
+                return shared_strings_map.get(index, "")
+            else:
+                # shared-stringのテーブルから読み込む   
+                return book.shared_strings.get_text(index)
+    else:
+        v = get_cell_value(element)
+        if v is None:
+            return ""
+        return str(v)
+
+def get_cell_datetime_value(element, time=None):
+    if time is None: time = TARGET_TIME
+    fl = float(element.v.text)
+    return time.convert_to_datetime(fl)
+
+def get_cell_time_value(element, time=None):
+    if time is None: time = TARGET_TIME
+    fl = float(element.v.text)
+    return time.convert_to_time(fl)
+    
+def get_cell_number_format(element, book):
+    style_index = element.s
+    return book.style_sheet.get_format(style_index).number_format
+
+
+
 """
 """
 class Cell(ElementProxy):
@@ -138,7 +221,6 @@ class Cell(ElementProxy):
         super(Cell, self).__init__(element)
         self._row = row
         self._book = workbook
-        self._v = None       # 内部値バッファ
         self._numfmt = None  # 書式バッファ
     
     @property
@@ -166,23 +248,7 @@ class Cell(ElementProxy):
         return self.is_number() and self.number_format.type == NUMVAL_TYPE_TIME
         
     def get_value(self):
-        if self._element.v is None:
-            return None
-        if self.is_string(): # 文字列型
-            return self.get_text()
-        elif self.is_number():
-            if self.number_format.type == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
-                return self.get_datetime_value()
-            elif self.number_format.type == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
-                return self.get_time_value()
-            else:                                               # 数値 - その他の型
-                v = self._element.v
-                return float(v.text)
-        else: # ブール型、エラー型、空のセル
-            v = self._element.v
-            if v is None:
-                return None
-            return v.text
+        return get_cell_value(self._element, self._book)
     
     def clear_value(self):
         # とりあえず空文字列を代入。これでいいのか？
@@ -191,50 +257,20 @@ class Cell(ElementProxy):
         self._v = None
     
     def get_text(self, shared_strings_map=None):
-        """ 
-        文字列の値を取り出す
-        Params:
-            *shared_strings_map(Dict[int, str]): あらかじめ取得済みの文字列マップ 
-        """
-        v = self._element.v
-        if v is None:
-            return ""
-        if self._element.t == ST_CellType.SHARED_STRING:
-            if len(v.text)==0:
-                return ""
-            if v.text[0] == "M":
-                # 一度変更されたテキストを読み込む
-                cell = self._book.shared_strings._get_pending_text(int(v.text[1:]))
-                return cell._v
-            else:
-                index = int(v.text)
-                if shared_strings_map:
-                    return shared_strings_map.get(index, "")
-                else:
-                    # shared-stringのテーブルから読み込む   
-                    si = self._book.shared_strings.get_item(index)
-                    if si is None:
-                        return ""
-                    return si.text
-        else:
-            return v.text
+        return get_cell_text(self._element, self._book, shared_strings_map)
     
-    def _finish_shared_string(self, shared_strings):
+    def _finish_shared_string(self, shared_strings, text):
         # shared_stringのインデックスを確定させる
         if self._element.t != ST_CellType.SHARED_STRING:
             return # さらに変更がおこり上書きされたので更新不要
-        if self._v is None:
-            raise ValueError("shared_stringのインデックスが不正です")
-        strid = shared_strings.add_string(self._v)
+        strid = shared_strings.add_string(text)
         self._element.get_or_add_v().text = str(strid)
     
-    def get_datetime_value(self, time=WINDOWS_EXCEL_TIME):
-        fl = float(self._element.v.text)
-        return time.convert_to_datetime(fl)
+    def get_datetime_value(self, time=None):
+        return get_cell_datetime_value(self._element, time)
 
-    def get_time_value(self, time=WINDOWS_EXCEL_TIME):
-        fl = float(self._element.v.text)
-        return time.convert_to_time(fl)
+    def get_time_value(self, time=None):
+        return get_cell_time_value(self._element, time)
     
     @property
     def raw(self):
@@ -245,31 +281,20 @@ class Cell(ElementProxy):
 
     @property
     def value(self):
-        v = self._v
-        if v is None:
-            v = self.get_value()
-            self._v = v
-        return v
+        return self.get_value()
     
     @property
     def text(self):
-        v = self.value
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        return str(v)
+        return self.get_text()
     
     @text.setter
     def text(self, t):
         self._element.t = ST_CellType.SHARED_STRING
         text = self._element.get_or_add_v().text
         if text and text[0] == "M":
-            cell = self._book.shared_strings._get_pending_text(int(text[1:]))
-            cell._v = t
+            self._book.shared_strings._set_pending_text(int(text[1:]), self, t)
         else:
-            modid = self._book.shared_strings._add_pending_text(self)
-            self._v = t
+            modid = self._book.shared_strings._set_pending_text(-1, self, t)
             self._element.v.text = "M{}".format(modid)
 
     @property
@@ -376,3 +401,28 @@ class CellRange:
             for cell in cells:
                 yield cell
 
+#
+#
+#
+def get_range_text(sheet, lefttop, rightbottom, orientation=None, iterbreak=True):
+    """
+    Params:
+        sheet(Proxy): ワークシート
+    Returns:    
+        List[Tuple[Str, Str]]: (テキスト、参照)のリスト　行の区別のない一次元のリスト
+    """
+    texts = []
+    r1, c1 = lefttop
+    r2, c2 = rightbottom
+    book = sheet.workbook
+    for row in sheet.element.sheetData.row_lst[r1:r2+1]:
+        cs = get_row_range_cell(str(row.r), row, c1, c2, iterbreak)
+        if iterbreak and cs is None:
+            break
+        for cell in cs:
+            if cell is not None:
+                text = get_cell_text(cell, book)
+            else:
+                text = ""
+            texts.append((text, cell.r))
+    return texts
