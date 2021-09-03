@@ -125,6 +125,8 @@ class CellRow(ElementProxy):
 def get_row_range_cell(rowkey, element, head, tail, emptynone):
     if not isinstance(rowkey, str):
         raise ValueError("CellRow.ref has unexpected value")
+    if tail == -1:
+        raise ValueError("Specify the column tail with an existing index value, not -1")
     celldict = {modify_ref("", rowkey, icol):i for i,icol in enumerate(range(head, tail+1))}
     cells = [None for _ in range(len(celldict))]
     empty = True
@@ -152,7 +154,7 @@ def get_cell_value(element, book):
         return None
     celltype = element.t
     if celltype in (ST_CellType.SHARED_STRING, ST_CellType.STR, ST_CellType.INLINE_STR): # 文字列型
-        return get_cell_text(element)
+        return get_cell_text(element, book)
     elif celltype == ST_CellType.NUMBER:
         if get_cell_number_format(element, book).type == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
             return get_cell_datetime_value(element)
@@ -193,7 +195,7 @@ def get_cell_text(element, book, shared_strings_map=None):
                 # shared-stringのテーブルから読み込む   
                 return book.shared_strings.get_text(index)
     else:
-        v = get_cell_value(element)
+        v = get_cell_value(element, book)
         if v is None:
             return ""
         return str(v)
@@ -341,11 +343,10 @@ class Cell(ElementProxy):
 class CellRange:
     """
     """
-    def __init__(self, sheet, lefttop, rightbottom, orientation=None, iterbreak=True):
+    def __init__(self, sheet, lefttop, rightbottom, iterbreak=True):
         self._sheet = sheet
         self._lt = lefttop
         self._rb = rightbottom
-        self._orientation = orientation
         self._iterbreak = iterbreak
 
     def __iter__(self):
@@ -404,7 +405,7 @@ class CellRange:
 #
 #
 #
-def get_range_text(sheet, lefttop, rightbottom, orientation=None, iterbreak=True):
+def get_range_text(sheet, lefttop, rightbottom, *, iterbreak=True, strmap=None):
     """
     Params:
         sheet(Proxy): ワークシート
@@ -415,14 +416,17 @@ def get_range_text(sheet, lefttop, rightbottom, orientation=None, iterbreak=True
     r1, c1 = lefttop
     r2, c2 = rightbottom
     book = sheet.workbook
-    for row in sheet.element.sheetData.row_lst[r1:r2+1]:
-        cs = get_row_range_cell(str(row.r), row, c1, c2, iterbreak)
+    rlast = r2 + 1 if r2 >= 0 else None
+    for row in sheet.element.sheetData.row_lst[r1:rlast]:
+        rowletter = str(row.r)
+        cs = get_row_range_cell(rowletter, row, c1, c2, iterbreak)
         if iterbreak and cs is None:
             break
-        for cell in cs:
+        for i, cell in enumerate(cs):
             if cell is not None:
-                text = get_cell_text(cell, book)
+                text = get_cell_text(cell, book, strmap)
             else:
                 text = ""
-            texts.append((text, cell.r))
+            ref = index_to_column(i) + rowletter
+            texts.append((text, ref))
     return texts

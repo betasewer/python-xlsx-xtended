@@ -274,7 +274,7 @@ class Worksheet(ElementProxy):
         else:
             return self.row(row).cell(column)
 
-    def range(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, orientation=None, stop=True):
+    def range(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, stop=True):
         """
         矩形のセル範囲を作成する。
         Params:
@@ -286,9 +286,9 @@ class Worksheet(ElementProxy):
             CellRange:
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
-        return CellRange(self, p1, p2, orientation=orientation, iterbreak=stop)
+        return CellRange(self, p1, p2, iterbreak=stop)
     
-    def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, orientation=None, stop=True):
+    def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, stop=True, strmap=None):
         """
         矩形のセル範囲のテキストを取得する。
         Params:
@@ -300,7 +300,7 @@ class Worksheet(ElementProxy):
             List[Str]:
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
-        return get_range_text(self, p1, p2, orientation=orientation, iterbreak=stop)
+        return get_range_text(self, p1, p2, iterbreak=stop, strmap=strmap)
 
     def vertical_range(self, lefttop, length=None):
         """
@@ -312,9 +312,9 @@ class Worksheet(ElementProxy):
             CellRange:
         """
         tail, stop = _vertical_tail(self, lefttop, length)
-        return self.range(lefttop, (tail, lefttop[1]), orientation="v", stop=stop)
+        return self.range(lefttop, (tail, lefttop[1]), stop=stop)
     
-    def get_vertical_range_text(self, lefttop, length=None):
+    def get_vertical_range_text(self, lefttop, length=None, *, strmap=None):
         """
         開始点から縦1列の範囲のテキストを取得する。
         Params:
@@ -324,7 +324,7 @@ class Worksheet(ElementProxy):
             List[Str]:
         """
         tail, stop = _vertical_tail(self, lefttop, length)
-        return self.get_range_text(lefttop, (tail, lefttop[1]), orientation="v", stop=stop)
+        return self.get_range_text(lefttop, (tail, lefttop[1]), stop=stop, strmap=strmap)
         
     def horizontal_range(self, lefttop, length=None):
         """
@@ -336,9 +336,9 @@ class Worksheet(ElementProxy):
             CellRange:
         """
         tail, stop = _horizontal_tail(self, lefttop, length)
-        return self.range(lefttop, (lefttop[0], tail), orientation="h", stop=stop)    
+        return self.range(lefttop, (lefttop[0], tail), stop=stop)    
     
-    def get_horizontal_range_text(self, lefttop, length=None):
+    def get_horizontal_range_text(self, lefttop, length=None, *, strmap=None):
         """
         開始点から横1行の範囲のテキストを取得する。
         Params:
@@ -348,7 +348,7 @@ class Worksheet(ElementProxy):
             List[Str]:
         """
         tail, stop = _horizontal_tail(self, lefttop, length)
-        return self.get_range_text(lefttop, (lefttop[0], tail), orientation="h", stop=stop)    
+        return self.get_range_text(lefttop, (lefttop[0], tail), stop=stop, strmap=strmap)    
     
     def allocate_range(self, lefttop, rightbottom=None):
         """
@@ -374,8 +374,8 @@ class Worksheet(ElementProxy):
         Params:
             index(int): 0ベース列番号
         """
-        row = self._element.sheetdata._add_row()
-        row.ref = index + 1
+        row = self._element.sheetData._add_row()
+        row.r = index + 1
 
 #
 #
