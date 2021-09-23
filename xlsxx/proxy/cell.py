@@ -153,8 +153,8 @@ def get_cell_value(element, book):
     if element.v is None:
         return None
     celltype = element.t
-    if celltype in (ST_CellType.SHARED_STRING, ST_CellType.STR, ST_CellType.INLINE_STR): # 文字列型
-        return get_cell_text(element, book)
+    if celltype in (ST_CellType.SHARED_STRING): # 共有文字列型
+        return get_cell_shared_text(element.v, book)
     elif celltype == ST_CellType.NUMBER:
         if get_cell_number_format(element, book).type == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
             return get_cell_datetime_value(element)
@@ -163,7 +163,7 @@ def get_cell_value(element, book):
         else:                                               # 数値 - その他の型
             v = element.v
             return float(v.text)
-    else: # ブール型、エラー型、空のセル
+    else: # その他の型、ブール型、エラー型、空のセル
         v = element.v
         if v is None:
             return None
@@ -181,24 +181,27 @@ def get_cell_text(element, book, shared_strings_map=None):
     if v is None:
         return ""
     if element.t == ST_CellType.SHARED_STRING:
-        if len(v.text)==0:
-            return ""
-        if v.text[0] == "M":
-            # 一度変更されたテキストを読み込む
-            cell, t = book.shared_strings._get_pending_text(int(v.text[1:]))
-            return t
-        else:
-            index = int(v.text)
-            if shared_strings_map:
-                return shared_strings_map.get(index, "")
-            else:
-                # shared-stringのテーブルから読み込む   
-                return book.shared_strings.get_text(index)
+        return get_cell_shared_text(v, book, shared_strings_map)
     else:
         v = get_cell_value(element, book)
         if v is None:
             return ""
         return str(v)
+
+def get_cell_shared_text(value, book, shared_strings_map=None):
+    if len(value.text)==0:
+        return ""
+    if value.text[0] == "M":
+        # 一度変更されたテキストを読み込む
+        _cell, t = book.shared_strings._get_pending_text(int(value.text[1:]))
+        return t
+    else:
+        index = int(value.text)
+        if shared_strings_map:
+            return shared_strings_map.get(index, "")
+        else:
+            # shared-stringのテーブルから読み込む   
+            return book.shared_strings.get_text(index)
 
 def get_cell_datetime_value(element, time=None):
     if time is None: time = TARGET_TIME
