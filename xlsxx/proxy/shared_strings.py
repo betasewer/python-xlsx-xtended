@@ -40,13 +40,7 @@ class SharedStrings(ElementProxy):
         """
         silst = self._element.si_lst
         if 0<=index and index<len(silst):
-            sielem = silst[index]
-            t = sielem.t
-            if t is None:
-                return "".join([r.t.text for r in sielem.r_lst])
-            if t.text is None:
-                return ""
-            return t.text
+            return _get_ss_text(silst[index])
         return ""
 
     def add_string(self, string):
@@ -72,11 +66,20 @@ class SharedStrings(ElementProxy):
         self._element.uniqueCount = c
     
     def fetch_text(self):
-        # 全のテキストを取り出す
+        # 全てのテキストを取り出す
         texts = {}
-        for i in range(len(self._element.si_lst)):
-            texts[i] = self.get_text(i)
+        for i, elem in enumerate(self._element.si_lst):
+            texts[i] = _get_ss_text(elem)
         return texts
+
+def _get_ss_text(sielem):
+    """ <si>のテキストを取り出す """
+    t = sielem.t
+    if t is None:
+        return "".join([r.t.text for r in sielem.r_lst])
+    if t.text is None:
+        return ""
+    return t.text
 
 
 class StringItem(ElementProxy):
