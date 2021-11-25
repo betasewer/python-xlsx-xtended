@@ -129,7 +129,19 @@ class CT_Sheets(BaseOxmlElement):
     
     """
     sheet = OneOrMore('ssml:sheet') # Sheet Information
-    
+
+    def add_sheet(self, rid, name=None, sheetid=None):
+        sht = self._add_sheet()
+        sht.rid = rid
+        if sheetid is None:
+            sheetid = len(self.sheet_lst)
+        if name is None:
+            name = "シート{}".format(sheetid)
+        if len(name) > 31:
+            raise ValueError("シート名は31文字以下でなければなりません")
+        sht.name = name
+        sht.sheetId = sheetid
+        return sht    
     
 class CT_Sheet(BaseOxmlElement):
     """

@@ -57,13 +57,25 @@ class Workbook(ElementProxy):
             worksheet = wspart.worksheet(self, entry)
             return worksheet
         elif id is not None:
-            for elsheet in self._element.sheets:
+            for elsheet in self._sheet_entries:
                 if elsheet.sheetId == id:
                     return self.sheet(entry=elsheet)
         elif index is not None:
-            for i, elsheet in enumerate(self._element.sheets):
+            for i, elsheet in enumerate(self._sheet_entries):
                 if i == index:
                     return self.sheet(entry=elsheet)
+    
+    def add_sheet(self, *, name=None):
+        part, rId = self._part.add_sheet_part()
+        entry = self._element.sheets.add_sheet(rId, name)
+        return part.worksheet(self, entry)
+    
+    def pick_sheet(self, index):
+        """ インデックスが足りていなければシートを追加して返す """
+        if index < len(self._sheet_entries):
+            return self.sheet(index=index)
+        else:
+            return self.add_sheet()
     
     @property
     def topsheet(self):
@@ -71,11 +83,15 @@ class Workbook(ElementProxy):
     
     @property
     def lastsheet(self):
-        return self.sheet(entry=self._element.sheets[-1])
+        return self.sheet(entry=self._sheet_entries[-1])
     
     @property
     def sheets(self):
-        return [self.sheet(entry=el) for el in self._element.sheets]
+        return [self.sheet(entry=el) for el in self._sheet_entries]
+    
+    @property
+    def _sheet_entries(self):
+        return self._element.sheets.sheet_lst
     
     @property
     def shared_strings(self):

@@ -2,10 +2,10 @@
 from xlsxx.api import open_xlsx
 from xlsxx.coord import ref_to_coord
 
-from machaon.types.file import BasicLoadFile
+from docxx.ma import OpcPackageFile
 
 
-class ExcelFile(BasicLoadFile):
+class ExcelFile(OpcPackageFile):
     """ @type
     エクセルファイル。
     """
@@ -64,4 +64,17 @@ class ExcelFile(BasicLoadFile):
             Any: 
         """
         return self.load()
-        
+    
+    def read_v(self, start, tailcolumn, tailrow=-1, sequence=True):
+        """ @method
+        縦方向に値を読んで返す。
+        Params:
+            start(str): 開始セル参照
+            tailcolumn(str): 終了列参照
+            tailrow(str): 終了行参照
+        Returns:
+            Tuple[Tuple[Str]]:
+        """
+        from xlsxx.proxy.sheet import read_sheet_vertical
+        return read_sheet_vertical(self.cursheet(), start, tailcolumn, tailrow, sequence=sequence)
+

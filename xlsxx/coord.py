@@ -39,6 +39,27 @@ def index_to_column(index):
         m = q
     return "".join(reversed(digits))
 
+def rowref_to_index(ref):
+    """
+    1ベース行番号文字を0ベース数字に変換する。
+    Params:
+        ref(str):
+    Returns:
+        int:
+    """
+    return int(ref)-1
+
+def index_to_rowref(index):
+    """
+    0ベース数字を1ベース行番号文字に変換する。
+    Params:
+        index(int):
+    Returns:
+        str:
+    """
+    return str(index+1)
+
+
 #
 #
 # セル参照
@@ -59,7 +80,7 @@ def ref_to_coord(ref):
     m = re_cellref.match(ref)
     if m is not None:
         column = column_to_index(m.group(1))
-        row = int(m.group(2))-1
+        row = rowref_to_index(m.group(2))
         return (row, column)
     return (None, None)
 
@@ -73,7 +94,7 @@ def coord_to_ref(coord):
     """
     row, column = coord
     c = index_to_column(column)
-    r = str(row+1)
+    r = index_to_rowref(row)
     return c + r
 
 def split_ref(ref):
@@ -200,14 +221,21 @@ def get_coord(coord):
         r, c = ref_to_coord(coord)
         return r, c
     else:
-        return coord
+        r, c = coord
+        if isinstance(r, str):
+            r = rowref_to_index(r)
+        if isinstance(c, str):
+            c = column_to_index(c)
+        return r, c
 
-def get_range_coord(range, coord2=None, *, rownum=None, columnnum=None):
+def get_range_coord(range, arg2=None, arg3=None, arg4=None, *, rownum=None, columnnum=None):
     """
     セル範囲参照、または座標の組を0ベース座標に分解する。
     Params:
-        range(str/Tuple): セル範囲参照／セル範囲座標の組／左上セル参照／左上セル座標
-        coord2(str/Tuple): 右下セル参照／右下セル座標
+        range(str/Tuple/int): セル範囲参照／セル範囲座標の組／左上セル参照／左上セル座標
+        arg2(str/Tuple/int): 右下セル参照／右下セル座標
+        arg3(int):
+        arg4(int):
         rownum(int): 左上からの行の増分
         columnnum(int): 左上からの列の増分
     Returns:
@@ -222,20 +250,20 @@ def get_range_coord(range, coord2=None, *, rownum=None, columnnum=None):
         c2 = c1 + (columnnum or 1)
         return (r1, c1), (r2, c2)
 
-    if coord2 is None:
-        # 範囲指定一つ
+    if all(x is None for x in (arg2, arg3, arg4)):
+        # 引数1: 範囲指定一つ
         if isinstance(range, str):
             c1, c2 = range_ref_to_coord(range)
             return c1, c2
         else:
             p1, p2 = range
             return p1, p2
-        
-    else:
-        # 左上セルと右下セルの指定
-        if not isinstance(coord2, (str, tuple)):
-            raise TypeError("coord2")
-        return get_coord(range), get_coord(coord2)
+    
+    elif arg3 is None and arg4 is None:
+        # 引数2: 左上セルと右下セルの指定
+        if not isinstance(arg2, (str, tuple)):
+            raise TypeError("(2) arg2 には座標が必要です")
+        return get_coord(range), get_coord(arg2)
 
 
 

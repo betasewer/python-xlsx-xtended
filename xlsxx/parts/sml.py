@@ -77,6 +77,11 @@ class SmlSheetMainPart(XmlPart):
             self.relate_to(ss_part, RT.STYLES)
             return ss_part        
             
+    def add_sheet_part(self):
+        part = SmlWorkSheetPart.new(self.package)
+        rId = self.relate_to(part, RT.WORKSHEET)
+        return part, rId
+
     def save(self, path_or_stream):
         """
         Save this document to *path_or_stream*, which can be either a path to
@@ -105,7 +110,14 @@ class SmlSheetMainPart(XmlPart):
 
 #
 class SmlWorkSheetPart(XmlPart): 
-    #
+    @classmethod
+    def new(cls, package):
+        """Return newly created footer part."""
+        partname = package.next_partname("/xl/worksheets/sheet%d.xml")
+        content_type = CT.SML_WORKSHEET
+        element = parse_xml(read_default_xml('default-worksheet.xml'))
+        return cls(partname, content_type, element, package)
+
     def worksheet(self, workbook, sheetid):
         return Worksheet(self._element, self, workbook, sheetid)
 

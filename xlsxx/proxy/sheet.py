@@ -11,7 +11,10 @@ from typing import Iterable
 
 from docxx.shared import ElementProxy, AttributeProperty
 from docxx.element import remove_element, query
-from xlsxx.coord import ref_to_coord, coord_to_ref, range_ref_to_coord, column_to_index, get_range_coord, modify_range_ref
+from xlsxx.coord import (
+    ref_to_coord, coord_to_ref, range_ref_to_coord, column_to_index, 
+    get_coord, get_range_coord, modify_range_ref
+)
 from xlsxx.proxy.cell import Cell, CellRow, CellRange, get_range_text
 
 """
@@ -350,12 +353,17 @@ class Worksheet(ElementProxy):
         tail, stop = _horizontal_tail(self, lefttop, length)
         return self.get_range_text(lefttop, (lefttop[0], tail), stop=stop, strmap=strmap)    
     
+    #
+    # 書き込み
+    #
     def allocate_range(self, lefttop, rightbottom=None):
         """
         範囲内に空のセルを追加する。
         Params:
             lefttop(Tuple/str): 開始点／範囲参照
             rightbottom(Tuple/str): 終了点（境界を含む）
+        Returns:
+            List[CellRow]:
         """
         p1, p2 = get_range_coord(lefttop, rightbottom)
         rmin, _cmin = p1
@@ -365,8 +373,12 @@ class Worksheet(ElementProxy):
         for i in range(rmax-curmax):
             self.add_row(curmax+i+1)
         # 各行を列方向に進捗する
+        rows = []
         for i in range(rmin, rmax+1):
-            self.row(i).new_empties_until(cmax)
+            row = self.row(i)
+            row.new_empties_until(cmax)
+            rows.append(row)
+        return rows
 
     def add_row(self, index):
         """
@@ -376,6 +388,23 @@ class Worksheet(ElementProxy):
         """
         row = self._element.sheetData._add_row()
         row.r = index + 1
+
+    def write_rows(self, lefttop, rows):
+        """
+        行の値のリストを流し込む。
+        Params:
+            lefttop(Tuple/str): 開始点／範囲参照
+            rows(Tuple[Tuple[str]]): 行のリスト、長さはそろわなくてよい
+        """
+        maxrowlen = max(len(x) for x in rows)
+        r1, c1 = get_coord(lefttop)
+        r2 = r1 + len(rows)
+        c2 = c1 + maxrowlen
+        cellrows = self.allocate_range((r1, c1), (r2, c2))
+        for row, cellrow in zip(rows, cellrows):
+            for ci, cell in enumerate(cellrow.cells):
+                if ci < len(row):
+                    cell.text = row[ci]
 
 #
 #
@@ -410,3 +439,39 @@ class Column(ElementProxy):
     max = AttributeProperty("max")
     width = AttributeProperty("width")
     
+
+#
+# 即座に値を読み書きする関数
+#
+def read_sheet_vertical(sheet, start, tailcolumn, tailrow=-1, *, sequence=False, nofetch=False):
+    """
+    シートから縦方向に値を読みだす
+    Params:
+        sheet(xlsxx.proxy.Worksheet): 対象シート
+        start(Tuple[str|int, str|int]|str): 開始位置の座標
+        tailcolumn(str|int): 終了位置の列参照・列番号（含む）
+        tailrow(str|int) : 終了位置の列参照・列番号（含む）
+    Returns:
+        List[List[Str]]: 文字列型の値が列の数だけ入った行のリスト
+    """
+    if nofetch:
+        strmap = None
+    else:
+        strmap = sheet.workbook.part.fetch_textmap()
+    
+    from xlsxx.coord import get_range_coord
+    (startrow, startcolumn), (tailrow, tailcolumn) = get_range_coord(start, (tailrow, tailcolumn))
+    texts = sheet.get_range_text((startrow, startcolumn), (tailrow, tailcolumn), strmap=strmap)
+    rows = []
+    i = 0
+    while i < len(texts):
+        row = ["" for _ in range(tailcolumn-startcolumn+1)]
+        for j in range(len(row)):
+            value, _ref = texts[i+j]
+            row[j] = value
+        if sequence and all(len(x) == 0 for x in row):
+            break
+        i += (j + 1)
+        rows.append(row)
+    return rows
+
