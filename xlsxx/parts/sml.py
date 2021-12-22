@@ -105,7 +105,7 @@ class SmlSheetMainPart(XmlPart):
         """
         ワークブック内の文字列を全て取得する。
         """
-        return self.shared_strings.fetch_text()
+        return self._shared_string_part.fetch_text()
 
 
 #
@@ -164,6 +164,10 @@ class SmlSharedStringsPart(XmlPart):
     def before_marshal(self):
         self.shared_strings._finish_before_marshal(self._pending_cells)
         self._pending_cells.clear()
+
+    def fetch_text(self):
+        texts = self.shared_strings.fetch_text()
+        return texts
 
 
 class SmlStylesPart(XmlPart):    

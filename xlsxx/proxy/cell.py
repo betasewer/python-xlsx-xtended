@@ -119,7 +119,7 @@ class CellRow(ElementProxy):
             columnindex(int): カラム0座標
         """
         cell = self._element._add_c()
-        cell.ref = modify_ref("", row=self.ref, col=index_to_column(column))
+        cell.r = modify_ref("", row=self.ref, col=index_to_column(column))
 
 #
 def get_row_range_cell(rowkey, element, head, tail, emptynone):
@@ -423,8 +423,10 @@ def get_range_text(sheet, lefttop, rightbottom, *, iterbreak=True, strmap=None):
     for row in sheet.element.sheetData.row_lst[r1:rlast]:
         rowletter = str(row.r)
         cs = get_row_range_cell(rowletter, row, c1, c2, iterbreak)
-        if iterbreak and cs is None:
-            break
+        #if iterbreak and cs is None:
+        #    break
+        if cs is None:
+            continue
         for i, cell in enumerate(cs):
             if cell is not None:
                 text = get_cell_text(cell, book, strmap)
