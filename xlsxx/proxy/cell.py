@@ -319,6 +319,10 @@ class Cell(ElementProxy):
         return self.coord[0]
 
     @property
+    def row_letter(self):
+        return split_ref(self.ref)[1]
+    
+    @property
     def column(self):
         return self.coord[1]
     
@@ -427,11 +431,11 @@ def get_range_text(sheet, lefttop, rightbottom, *, iterbreak=True, strmap=None):
         #    break
         if cs is None:
             continue
-        for i, cell in enumerate(cs):
+        for ci, cell in enumerate(cs, start=c1):
             if cell is not None:
                 text = get_cell_text(cell, book, strmap)
             else:
                 text = ""
-            ref = index_to_column(i) + rowletter
+            ref = index_to_column(ci) + rowletter
             texts.append((text, ref))
     return texts
