@@ -277,7 +277,7 @@ class Worksheet(ElementProxy):
         else:
             return self.row(row).cell(column)
 
-    def range(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, stop=True):
+    def range(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None):
         """
         矩形のセル範囲を作成する。
         Params:
@@ -289,7 +289,7 @@ class Worksheet(ElementProxy):
             CellRange:
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
-        return CellRange(self, p1, p2, iterbreak=stop)
+        return CellRange(self, p1, p2)
     
     def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, stop=True, strmap=None):
         """
@@ -315,7 +315,7 @@ class Worksheet(ElementProxy):
             CellRange:
         """
         tail, stop = _vertical_tail(self, lefttop, length)
-        return self.range(lefttop, (tail, lefttop[1]), stop=stop)
+        return self.range(lefttop, (tail, lefttop[1]))
     
     def get_vertical_range_text(self, lefttop, length=None, *, strmap=None):
         """
@@ -338,8 +338,8 @@ class Worksheet(ElementProxy):
         Returns:
             CellRange:
         """
-        tail, stop = _horizontal_tail(self, lefttop, length)
-        return self.range(lefttop, (lefttop[0], tail), stop=stop)    
+        tail = _horizontal_tail(self, lefttop, length)
+        return self.range(lefttop, (lefttop[0], tail))    
     
     def get_horizontal_range_text(self, lefttop, length=None, *, strmap=None):
         """
@@ -423,13 +423,11 @@ def _vertical_tail(proxy, lefttop, length):
 def _horizontal_tail(proxy, lefttop, length):
     if length is None:
         tail = proxy.last_column
-        stop = True
     else:
         if length <= 0:
             raise ValueError("長さは1以上必要です")
         tail = lefttop[1] + length - 1
-        stop = False
-    return tail, stop
+    return tail
 
 
 """

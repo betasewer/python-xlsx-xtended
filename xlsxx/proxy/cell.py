@@ -1,4 +1,6 @@
 import datetime
+import bisect
+from typing import Generator, List
 
 from docxx.shared import ElementProxy
 from xlsxx.oxml.simpletypes import ST_CellType
@@ -8,6 +10,7 @@ from xlsxx.proxy.styles import (
     NUMVAL_TYPE_DATETIME,
     NUMVAL_TYPE_TIME
 )
+from xlsxx.coord import column_to_index
 
 #
 # from openpyxl
@@ -97,9 +100,11 @@ class CellRow(ElementProxy):
         return [Cell(c, self._element, self._workbook) if c is not None else None for c in cells]
         
     def cell(self, column=0):
-        if column < 0 or len(self._cells) <= column:
+        if column < 0:
             return None
-        elcell = self._cells[column]
+        elcell, inspoint = find_cell_by_index(self._element, column)
+        if elcell is None:
+            elcell = self.add_cell(column, inspoint)
         return Cell(elcell, self._element, self._workbook)
 
     def new_empties_until(self, column):
@@ -113,15 +118,33 @@ class CellRow(ElementProxy):
         for i in range(column-cur):
             self.add_cell(cur+i+1)
 
-    def add_cell(self, column):
+    def add_cell(self, column, inspoint=None):
         """ 空のセルを追加する。
         Params:
             columnindex(int): カラム0座標
+            inspoint(int): 挿入点
         """
-        cell = self._element._add_c()
+        if inspoint is None:
+            _, inspoint = find_cell_by_index(self._element, column)
+        if inspoint < len(self._element.c_lst):
+            inscell = self._element.c_lst[inspoint]
+            cell = self._element._add_c()
+            inscell.addprevious(cell)
+        else:
+            cell = self._element._add_c()
         cell.r = modify_ref("", row=self.ref, col=index_to_column(column))
+        return cell
 
 #
+def find_cell_by_index(element, columnindex):
+    celllst = element.c_lst
+    colindices = [ref_to_coord(c.r)[1] for c in celllst]
+    pos = bisect.bisect_left(colindices, columnindex)
+    if colindices[pos] == columnindex:
+        return celllst[pos], None
+    else:
+        return None, pos
+
 def get_row_range_cell(rowkey, element, head, tail, emptynone):
     if not isinstance(rowkey, str):
         raise ValueError("CellRow.ref has unexpected value")
@@ -302,6 +325,11 @@ class Cell(ElementProxy):
             modid = self._book.shared_strings._set_pending_text(-1, self, t)
             self._element.v.text = "M{}".format(modid)
 
+    def is_empty_cell(self):
+        if self.empty:
+            return True
+        return len(self.text.strip()) == 0
+
     @property
     def empty(self):
         return self._element.v is None
@@ -350,14 +378,13 @@ class Cell(ElementProxy):
 class CellRange:
     """
     """
-    def __init__(self, sheet, lefttop, rightbottom, iterbreak=True):
+    def __init__(self, sheet, lefttop, rightbottom):
         self._sheet = sheet
         self._lt = lefttop
         self._rb = rightbottom
-        self._iterbreak = iterbreak
 
     def __iter__(self):
-        return self.cells
+        return self.cells()
     
     @property
     def sheet(self):
@@ -367,18 +394,17 @@ class CellRange:
     def coords(self):
         return (self._lt, self._rb)
 
-    def row_cells(self):
+    def row_cells(self, *, sequence=False, emptynone=False) -> Generator[List[Cell], None, None]:
         """
         行ごとにセルのリストを返す。
         Yields:
             List[Cell]:
         """
-        brk = self._iterbreak
         r1, c1 = self._lt
         r2, c2 = self._rb
         for row in self._sheet.get_range_rows(r1, r2):
-            cells = row.get_range_cells(c1, c2, emptynone=brk)
-            if brk and cells is None:
+            cells = row.get_range_cells(c1, c2, emptynone=emptynone)
+            if sequence and cells is None:
                 break
             yield cells
     
@@ -400,12 +426,11 @@ class CellRange:
         for col in cols:
             yield col
     
-    @property
-    def cells(self):
+    def cells(self, *, sequence=False, emptynone=False):
         """
         すべてのセルを順に返す。
         """
-        for cells in self.row_cells():
+        for cells in self.row_cells(emptynone=emptynone):
             for cell in cells:
                 yield cell
 
