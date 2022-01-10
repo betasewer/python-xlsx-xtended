@@ -4,6 +4,10 @@ from xlsxx.coord import ref_to_coord
 
 from docxx.ma import OpcPackageFile
 
+from xlsxx.parts.sml import SmlSheetMainPart
+from xlsxx.proxy.workbook import Workbook
+from xlsxx.proxy.sheet import Worksheet
+
 
 class ExcelFile(OpcPackageFile):
     """ @type
@@ -22,15 +26,15 @@ class ExcelFile(OpcPackageFile):
     def _with_path(self, p):
         return ExcelFile(p, file=self._file) # シートはリセットされる
     
-    def topsheet(self):
+    def topsheet(self) -> Worksheet:
         """ @method
         ワークブックの先頭のシートを返す。
         Returns:
             Any:
         """
-        return self.load().workbook.topsheet
+        return self.workbook().topsheet
     
-    def cursheet(self):
+    def cursheet(self) -> Worksheet:
         """ @method
         現在選択されているシート。
         Returns:
@@ -38,7 +42,7 @@ class ExcelFile(OpcPackageFile):
         """
         if self._cursheetid is None:
             return self.topsheet()
-        return self.load().workbook.sheet(id=self._cursheetid)
+        return self.workbook().sheet(id=self._cursheetid)
 
     def with_sheet(self, index):
         """ @method
@@ -46,18 +50,18 @@ class ExcelFile(OpcPackageFile):
         Params:
             index(int):
         """
-        sh = self.load().workbook.sheet(index=index)
+        sh = self.workbook().sheet(index=index)
         self._cursheetid = sh.id
 
-    def workbook(self):
+    def workbook(self) -> Workbook:
         """ @method
         ワークブックを返す。
         Returns:
             Any:
         """
-        return self.load().workbook
+        return self.document().workbook
     
-    def document(self):
+    def document(self) -> SmlSheetMainPart:
         """ @method
         ドキュメントを返す。
         Returns:

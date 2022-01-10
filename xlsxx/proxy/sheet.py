@@ -300,7 +300,7 @@ class Worksheet(ElementProxy):
             rownum(int): 左上からの行の増分
             columnnum(int): 左上からの列の増分
         Returns:
-            List[Str]:
+            List[Tuple[Str, Str]]: セル文字列、セル参照のタプルのリスト
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
         return get_range_text(self, p1, p2, iterbreak=stop, strmap=strmap)
