@@ -16,11 +16,12 @@ class SharedStrings(ElementProxy):
     """
     """
 
-    __slots__ = ('_part', )
+    __slots__ = ('_part', '_textscache')
 
     def __init__(self, element, part):
         super(SharedStrings, self).__init__(element)
         self._part = part
+        self._textscache = None
     
     @property
     def items(self):
@@ -43,23 +44,39 @@ class SharedStrings(ElementProxy):
             return _get_ss_text(silst[index])
         return ""
 
-    def add_string(self, string):
+    def add_item(self, string):
+        """ エントリを新規追加する """
         si = StringItem(self._element._add_si())
         si.text = string
-        newid = len(self._element.si_lst)-1
-        return newid
     
     def _get_pending_text(self, id):
         return self._part._get_pending_text(id)
     
-    def _set_pending_text(self, id, cell, text):
+    def _set_pending_text(self, id, elcell, text):
         # id == -1 で末尾に追加
-        return self._part._set_pending_text(id, cell, text)
+        return self._part._set_pending_text(id, elcell, text)
 
-    def _finish_before_marshal(self, pending_cells):
+    def _finish(self, pending_cells):
         # 新たに書き込まれたテキストを格納する
-        for cell, text in pending_cells:
-            cell._finish_shared_string(self, text)
+        newtextmap = {}
+        curtextentries = self._textscache or self.fetch_text()
+        for index, text in curtextentries.items():
+            newtextmap[text] = index
+
+        nextsid = len(self._element.si_lst)
+        for elcell, text in pending_cells:
+            if not elcell.is_shared_string():
+                continue
+
+            if text in newtextmap:
+                sid = newtextmap[text]
+            else:
+                sid = nextsid
+                self.add_item(text)
+                newtextmap[text] = sid
+                nextsid = sid + 1
+            
+            elcell.set_value(sid)
         
         c = len(self._element.si_lst)
         self._element.count = c
@@ -70,6 +87,7 @@ class SharedStrings(ElementProxy):
         texts = {}
         for i, elem in enumerate(self._element.si_lst):
             texts[i] = _get_ss_text(elem)
+        self._textscache = texts
         return texts
 
 def _get_ss_text(sielem):

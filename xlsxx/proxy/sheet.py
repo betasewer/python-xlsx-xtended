@@ -7,7 +7,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-from typing import Iterable
+from collections import defaultdict
 
 from docxx.shared import ElementProxy, AttributeProperty
 from docxx.element import remove_element, query
@@ -200,7 +200,7 @@ class Worksheet(ElementProxy):
         Returns:
             List[CellRow]:
         """
-        return [CellRow(el, self._workbook) for el in self._rows]
+        return [CellRow(el, self) for el in self._rows]
     
     def get_range_rows(self, head, tail):
         """
@@ -215,7 +215,7 @@ class Worksheet(ElementProxy):
             last = None
         else:
             last = tail + 1
-        return [CellRow(el, self._workbook) for el in self._rows[head:last]]
+        return [CellRow(el, self) for el in self._rows[head:last]]
     
     def row(self, row):
         """
@@ -227,7 +227,7 @@ class Worksheet(ElementProxy):
         """
         if row < 0 or len(self._rows) <= row:
             return None
-        return CellRow(self._rows[row], self._workbook)
+        return CellRow(self._rows[row], self)
     
     def minimize_dimension(self):
         # セルと行の数を調べ、最小限の寸法を決める
@@ -389,7 +389,7 @@ class Worksheet(ElementProxy):
         row = self._element.sheetData._add_row()
         row.r = index + 1
 
-    def write_rows(self, lefttop, rows):
+    def write_rows_text(self, lefttop, rows):
         """
         行の値のリストを流し込む。
         Params:
@@ -406,6 +406,20 @@ class Worksheet(ElementProxy):
                 if ci < len(row):
                     cell.text = row[ci]
 
+    def write_texts(self, coord_texts):
+        """
+        座標とテキストの組のリストから一気にセルへの書き込みを行う。
+        Params:
+            coord_texts(List[Tuple[Tuple[int, int], str]]): 座標とテキストの組のリスト
+        """
+        rows = defaultdict(list)
+        for (row, col), text in coord_texts:
+            rows[row].append((col, text))
+
+        for row, coltexts in rows.items():
+            cellrow = self.row(row)
+            cellrow.write_texts(coltexts)
+    
 #
 #
 #

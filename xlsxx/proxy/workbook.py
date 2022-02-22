@@ -9,7 +9,7 @@ from __future__ import (
 )
 
 from docxx.shared import ElementProxy
-from xlsxx.oxml.simpletypes import ST_CellType
+
 
 """
 """
@@ -51,19 +51,32 @@ class Workbook(ElementProxy):
         """
         return self._part.core_properties
 
-    def sheet(self, id=None, *, index=None, entry=None):
-        if entry is not None:
-            wspart = self._part.related_parts.get(entry.rid)
-            worksheet = wspart.worksheet(self, entry)
-            return worksheet
-        elif id is not None:
+    def _get_sheetentry(self, id=None, *, index=None, fallback=False):
+        if id is not None:
             for elsheet in self._sheet_entries:
                 if elsheet.sheetId == id:
-                    return self.sheet(entry=elsheet)
+                    return elsheet
         elif index is not None:
-            for i, elsheet in enumerate(self._sheet_entries):
-                if i == index:
-                    return self.sheet(entry=elsheet)
+            if 0 <= index and index < len(self._sheet_entries):
+                return self._sheet_entries[index]
+        else:
+            raise ValueError("Specify id or index")
+        if not fallback:
+            raise ValueError("No sheet entry found: id={}, index={}".format(id, index))
+        return None
+        
+    def get_sheet_index(self, id=None):
+        for i, elsheet in enumerate(self._sheet_entries):
+            if id is not None and id == elsheet.sheetId:
+                return i
+        return None
+
+    def sheet(self, id=None, *, index=None, entry=None):
+        if entry is None:
+            entry = self._get_sheetentry(id=id, index=index)
+        wspart = self._part.related_parts.get(entry.rid)
+        worksheet = wspart.worksheet(self, entry)
+        return worksheet
     
     def add_sheet(self, *, name=None):
         part, rId = self._part.add_sheet_part()
@@ -76,6 +89,15 @@ class Workbook(ElementProxy):
             return self.sheet(index=index)
         else:
             return self.add_sheet()
+
+    def delete_sheet(self, id=None, *, index=None, entry=None):
+        """ 指定したシートを削除する """
+        if len(self._sheet_entries) == 1:
+            raise ValueError("シートは最低1つ必要です")
+        if entry is None:
+            entry = self._get_sheetentry(id=id, index=index)
+        self._part.drop_rel(entry.rid) # シートのパーツを切り離す
+        self._element.sheets.remove(entry) # シートのエントリーを削除する
     
     @property
     def topsheet(self):

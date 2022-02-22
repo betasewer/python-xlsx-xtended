@@ -4,7 +4,10 @@ from typing import Generator, List
 
 from docxx.shared import ElementProxy
 from xlsxx.oxml.simpletypes import ST_CellType
-from xlsxx.coord import index_to_column, ref_to_coord, coord_to_ref, modify_ref, split_ref
+from xlsxx.coord import (
+    index_to_column, ref_to_coord, coord_to_ref, 
+    rowref_to_index, modify_ref, split_ref
+)
 from xlsxx.proxy.styles import (
     NUMVAL_TYPE_NUMBER,
     NUMVAL_TYPE_DATETIME,
@@ -65,9 +68,16 @@ TARGET_TIME = WINDOWS_EXCEL_TIME
 """
 """
 class CellRow(ElementProxy):
-    def __init__(self, element, workbook):
-        super(CellRow, self).__init__(element)
-        self._workbook = workbook
+    def __init__(self, element, sheet):
+        super(CellRow, self).__init__(element, sheet)
+
+    @property
+    def sheet(self):
+        return self._parent
+
+    @property
+    def workbook(self):
+        return self._parent.workbook
     
     @property
     def ref(self):
@@ -82,7 +92,7 @@ class CellRow(ElementProxy):
     @property
     def cells(self):
         for elcell in self._cells:
-            yield Cell(elcell, self._element, self._workbook)
+            yield Cell(elcell, self)
         
     def get_range_cells(self, head, tail, *, emptynone=False):
         """
@@ -97,14 +107,15 @@ class CellRow(ElementProxy):
         cells = get_row_range_cell(self.ref, self._element, head, tail, emptynone=emptynone)
         if cells is None:
             return None
-        return [Cell(c, self._element, self._workbook) if c is not None else None for c in cells]
+        return [Cell(c, self) if c is not None else None for c in cells]
         
     def cell(self, column=0):
         if column < 0:
             return None
-        elcell, inspoint = find_cell_by_index(self._element, column)
+        cells = self._cells
+        elcell, inscell = find_cell_by_index(cells, column)
         if elcell is None:
-            elcell = self.add_cell(column, inspoint)
+            elcell, cells = self._add_cell(column, inscell, cells)
         return Cell(elcell, self._element, self._workbook)
 
     def new_empties_until(self, column):
@@ -116,34 +127,74 @@ class CellRow(ElementProxy):
         if cur >= column:
             return
         for i in range(column-cur):
-            self.add_cell(cur+i+1)
+            self._add_cell(cur+i+1)
 
-    def add_cell(self, column, inspoint=None):
+    def _add_cell(self, column, inspoint=None, cells=None):
         """ 空のセルを追加する。
         Params:
             columnindex(int): カラム0座標
             inspoint(int): 挿入点
+        Returns:
+            Cell:
+            List[Cell]:
         """
+        if cells is None:
+            cells = self._cells
         if inspoint is None:
-            _, inspoint = find_cell_by_index(self._element, column)
-        if inspoint < len(self._element.c_lst):
-            inscell = self._element.c_lst[inspoint]
+            cell, inspoint = find_cell_by_index(cells, column)
+        if inspoint is not None:
             cell = self._element._add_c()
-            inscell.addprevious(cell)
-        else:
-            cell = self._element._add_c()
+            if inspoint is INSERTCELL_APPEND:
+                cells.append(cell)
+            else:
+                inscell = cells[inspoint]
+                inscell.addprevious(cell)
+                cells.insert(inspoint, cell)
         cell.r = modify_ref("", row=self.ref, col=index_to_column(column))
-        return cell
+        return cell, cells
 
-#
-def find_cell_by_index(element, columnindex):
-    celllst = element.c_lst
-    colindices = [ref_to_coord(c.r)[1] for c in celllst]
+    def write_texts(self, column_texts):
+        """
+        行にテキストを一度に書き込む
+        Params:
+            column_texts(List[Tuple[int, str]]): カラムとテキストの組のリスト
+        """
+        if not column_texts:
+            return
+        book = self.workbook
+        cells = self._element.c_lst
+        cellhead = 0
+        for col, text in sorted(column_texts, key=lambda x:x[0]):
+            # 書き込み先セルを順に探す
+            destcell = None
+            while cellhead < len(cells):
+                cell = cells[cellhead]
+                cellcol = ref_to_coord(cell.r)[1]
+                if cellcol == col:
+                    destcell = cell
+                    break
+                elif cellcol > col:
+                    destcell, cells = self._add_cell(col, cellhead, cells) # cellsも更新する必要がある
+                    break
+                cellhead += 1
+            else:
+                destcell, cells = self._add_cell(col, INSERTCELL_APPEND, cells)
+            
+            # 書き込む
+            set_cell_text(destcell, book, text)
+    
+class INSERTCELL_APPEND:
+    pass
+
+def find_cell_by_index(cells, columnindex):
+    colindices = [ref_to_coord(c.r)[1] for c in cells]
     pos = bisect.bisect_left(colindices, columnindex)
-    if colindices[pos] == columnindex:
-        return celllst[pos], None
+    if pos < len(colindices) and colindices[pos] == columnindex:
+        return cells[pos], None # 見つかった
+    elif pos >= len(colindices):
+        return None, INSERTCELL_APPEND # 末尾に新規追加
     else:
-        return None, pos
+        return None, pos # このセルの前に新規追加
 
 def get_row_range_cell(rowkey, element, head, tail, emptynone):
     if not isinstance(rowkey, str):
@@ -173,24 +224,21 @@ def get_cell_value(element, book):
         element(Element): 要素
         book(Proxy): ワークブック
     """
-    if element.v is None:
+    val = element.value()
+    if val is None:
         return None
     celltype = element.t
     if celltype in (ST_CellType.SHARED_STRING): # 共有文字列型
-        return get_cell_shared_text(element.v, book)
+        return get_cell_shared_text(book, val)
     elif celltype == ST_CellType.NUMBER:
         if get_cell_number_format(element, book).type == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
             return get_cell_datetime_value(element)
         elif get_cell_number_format(element, book).type == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
             return get_cell_time_value(element)
         else:                                               # 数値 - その他の型
-            v = element.v
-            return float(v.text)
-    else: # その他の型、ブール型、エラー型、空のセル
-        v = element.v
-        if v is None:
-            return None
-        return v.text
+            return float(val)
+    else: # その他の型、ブール型、エラー型、空のセルはそのまま
+        return val
 
 def get_cell_text(element, book, shared_strings_map=None):
     """ 
@@ -200,26 +248,26 @@ def get_cell_text(element, book, shared_strings_map=None):
         book(Proxy): ワークブックの要素
         *shared_strings_map(Dict[int, str]): あらかじめ取得済みの文字列マップ 
     """
-    v = element.v
+    v = element.value()
     if v is None:
         return ""
     if element.t == ST_CellType.SHARED_STRING:
-        return get_cell_shared_text(v, book, shared_strings_map)
+        return get_cell_shared_text(book, v, shared_strings_map)
     else:
         v = get_cell_value(element, book)
         if v is None:
             return ""
         return str(v)
 
-def get_cell_shared_text(value, book, shared_strings_map=None):
-    if len(value.text)==0:
+def get_cell_shared_text(book, text, shared_strings_map=None):
+    if len(text)==0:
         return ""
-    if value.text[0] == "M":
+    if text[0] == "M":
         # 一度変更されたテキストを読み込む
-        _cell, t = book.shared_strings._get_pending_text(int(value.text[1:]))
+        _cell, t = book.shared_strings._get_pending_text(int(text[1:]))
         return t
     else:
-        index = int(value.text)
+        index = int(text)
         if shared_strings_map:
             return shared_strings_map.get(index, "")
         else:
@@ -228,28 +276,47 @@ def get_cell_shared_text(value, book, shared_strings_map=None):
 
 def get_cell_datetime_value(element, time=None):
     if time is None: time = TARGET_TIME
-    fl = float(element.v.text)
+    fl = float(element.value())
     return time.convert_to_datetime(fl)
 
 def get_cell_time_value(element, time=None):
     if time is None: time = TARGET_TIME
-    fl = float(element.v.text)
+    fl = float(element.value())
     return time.convert_to_time(fl)
     
 def get_cell_number_format(element, book):
     style_index = element.s
     return book.style_sheet.get_format(style_index).number_format
 
-
+#
+#
+#
+def set_cell_text(element, book, value):
+    if not isinstance(value, str):
+        value = str(value)
+    element.t = ST_CellType.SHARED_STRING
+    modid = element.get_or_add_v().text
+    if modid and modid[0] == "M":
+        modidnum = int(modid[1:])
+        book.shared_strings._set_pending_text(modidnum, element, value)
+    else:
+        modid = book.shared_strings._set_pending_text(-1, element, value)
+        element.v.text = "M{}".format(modid)
 
 """
 """
 class Cell(ElementProxy):
-    def __init__(self, element, row, workbook):
-        super(Cell, self).__init__(element)
-        self._row = row
-        self._book = workbook
+    def __init__(self, element, row):
+        super(Cell, self).__init__(element, row) # parent == CellRow
         self._numfmt = None  # 書式バッファ
+
+    @property
+    def cellrow(self):
+        return self._parent
+
+    @property
+    def workbook(self):
+        return self._parent.workbook
     
     @property
     def _type(self):
@@ -259,7 +326,7 @@ class Cell(ElementProxy):
         return self._type in (
             ST_CellType.SHARED_STRING, ST_CellType.STR, ST_CellType.INLINE_STR
         )
-    
+
     def is_number(self):
         return self._type == ST_CellType.NUMBER
     
@@ -276,7 +343,7 @@ class Cell(ElementProxy):
         return self.is_number() and self.number_format.type == NUMVAL_TYPE_TIME
         
     def get_value(self):
-        return get_cell_value(self._element, self._book)
+        return get_cell_value(self._element, self.workbook)
     
     def clear_value(self):
         # とりあえず空文字列を代入。これでいいのか？
@@ -285,14 +352,7 @@ class Cell(ElementProxy):
         self._v = None
     
     def get_text(self, shared_strings_map=None):
-        return get_cell_text(self._element, self._book, shared_strings_map)
-    
-    def _finish_shared_string(self, shared_strings, text):
-        # shared_stringのインデックスを確定させる
-        if self._element.t != ST_CellType.SHARED_STRING:
-            return # さらに変更がおこり上書きされたので更新不要
-        strid = shared_strings.add_string(text)
-        self._element.get_or_add_v().text = str(strid)
+        return get_cell_text(self._element, self.workbook, shared_strings_map)
     
     def get_datetime_value(self, time=None):
         return get_cell_datetime_value(self._element, time)
@@ -302,10 +362,7 @@ class Cell(ElementProxy):
     
     @property
     def raw(self):
-        v = self._element.v
-        if v is None:
-            return None
-        return v.text
+        return self._element.value()
 
     @property
     def value(self):
@@ -317,22 +374,16 @@ class Cell(ElementProxy):
     
     @text.setter
     def text(self, t):
-        self._element.t = ST_CellType.SHARED_STRING
-        text = self._element.get_or_add_v().text
-        if text and text[0] == "M":
-            self._book.shared_strings._set_pending_text(int(text[1:]), self, t)
-        else:
-            modid = self._book.shared_strings._set_pending_text(-1, self, t)
-            self._element.v.text = "M{}".format(modid)
+        set_cell_text(self._element, self.workbook, t)
+
+    @property
+    def empty(self):
+        return self._element.v is None
 
     def is_empty_cell(self):
         if self.empty:
             return True
         return len(self.text.strip()) == 0
-
-    @property
-    def empty(self):
-        return self._element.v is None
 
     @property
     def ref(self):
@@ -364,7 +415,7 @@ class Cell(ElementProxy):
     @property
     def style(self):
         style_index = self._element.s
-        return self._book.style_sheet.get_format(style_index)
+        return self.workbook.style_sheet.get_format(style_index)
     
     @property
     def number_format(self):
@@ -442,7 +493,7 @@ def get_range_text(sheet, lefttop, rightbottom, *, iterbreak=True, strmap=None):
     Params:
         sheet(Proxy): ワークシート
     Returns:    
-        List[Tuple[Str, Str]]: (テキスト、参照)のリスト　行の区別のない一次元のリスト
+        List[Tuple[Str, Tuple[int, int]]]: (テキスト、座標)のリスト　行の区別のない一次元のリスト
     """
     texts = []
     r1, c1 = lefttop
@@ -461,6 +512,6 @@ def get_range_text(sheet, lefttop, rightbottom, *, iterbreak=True, strmap=None):
                 text = get_cell_text(cell, book, strmap)
             else:
                 text = ""
-            ref = index_to_column(ci) + rowletter
-            texts.append((text, ref))
+            coord = (rowref_to_index(rowletter), ci)
+            texts.append((text, coord))
     return texts

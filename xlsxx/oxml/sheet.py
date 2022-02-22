@@ -221,6 +221,17 @@ class CT_Cell(BaseOxmlElement):
     vm = OptionalAttribute('vm', XsdUnsignedInt, 0) # Value Metadata Index
     ph = OptionalAttribute('ph', XsdBoolean, False) # Show Phonetic
     
+    def value(self):
+        if self.v is None:
+            return None
+        return self.v.text
+
+    def set_value(self, v):
+        self.get_or_add_v().text = str(v)
+
+    def is_shared_string(self):
+        return self.t == ST_CellType.SHARED_STRING
+    
 class CT_SheetPr(BaseOxmlElement):
     """
     Complex type (sml-sheet.xsd)

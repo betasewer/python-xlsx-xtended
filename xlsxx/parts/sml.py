@@ -151,18 +151,18 @@ class SmlSharedStringsPart(XmlPart):
     def shared_strings(self):
         return SharedStrings(self.element, self)
     
-    def _set_pending_text(self, index, cell, text):
+    def _set_pending_text(self, index, elcell, text):
         if index == -1:
-            self._pending_cells.append((cell, text))
+            self._pending_cells.append((elcell, text))
             index = len(self._pending_cells)-1
         return index
 
     def _get_pending_text(self, index):
-        cell, text = self._pending_cells[index]
-        return cell, text
+        elcell, text = self._pending_cells[index]
+        return elcell, text
 
     def before_marshal(self):
-        self.shared_strings._finish_before_marshal(self._pending_cells)
+        self.shared_strings._finish(self._pending_cells)
         self._pending_cells.clear()
 
     def fetch_text(self):

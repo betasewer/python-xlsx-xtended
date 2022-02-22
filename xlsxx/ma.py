@@ -1,3 +1,4 @@
+from typing import List
 
 from xlsxx.api import open_xlsx
 from xlsxx.coord import ref_to_coord
@@ -16,6 +17,10 @@ class ExcelFile(OpcPackageFile):
     def __init__(self, path=None, *, file=None):
         super().__init__(path=path, file=file)
         self._cursheetid = None
+
+    @classmethod
+    def new(cls, path):
+        return cls(path, file=open_xlsx())
 
     def loadfile(self):
         return open_xlsx(self.pathstr)
@@ -44,14 +49,36 @@ class ExcelFile(OpcPackageFile):
             return self.topsheet()
         return self.workbook().sheet(id=self._cursheetid)
 
-    def with_sheet(self, index):
+    def sheets(self) -> List[Worksheet]:
+        """ @method
+        全てのシート。
+        Returns:
+            Any:
+        """
+        return self.workbook().sheets
+
+    def with_sheet(self, index=None, *, id=None):
         """ @method
         シートを選択する。
         Params:
             index(int):
         """
-        sh = self.workbook().sheet(index=index)
-        self._cursheetid = sh.id
+        if id is not None:
+            self._cursheetid = id
+        elif index is not None:
+            sh = self.workbook().sheet(index=index)
+            self._cursheetid = sh.id
+
+    def delete_sheet(self, index=None, *, id=None):
+        """ シートを削除する。カレントシートであればカレントが無くなる。 """
+        entry = self.workbook()._get_sheetentry(index=index, id=id)
+        if id is None:
+            id = entry.sheetId
+        if self._cursheetid == id:
+            self.workbook().delete_sheet(entry=entry)
+            self._cursheetid = None
+        else:
+            self.workbook().delete_sheet(entry=entry)
 
     def workbook(self) -> Workbook:
         """ @method

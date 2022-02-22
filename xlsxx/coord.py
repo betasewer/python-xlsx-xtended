@@ -97,6 +97,36 @@ def coord_to_ref(coord):
     r = index_to_rowref(row)
     return c + r
 
+def is_column(ref):
+    """
+    カラム参照であるか判定する。
+    Params:
+        ref(str):
+    Returns:
+        bool:
+    """
+    return ref.isalpha() and ref.isupper()
+
+def is_rowref(ref):
+    """
+    行参照であるか判定する。
+    Params:
+        ref(str):
+    Returns:
+        bool:
+    """
+    return ref.isdigit() and ref != "0"
+
+def is_ref(ref):
+    """
+    セル参照であるか判定する。
+    Params:
+        ref(str):
+    Returns:
+        bool:
+    """
+    return re_cellref.match(ref) is not None
+
 def split_ref(ref):
     """
     セル参照をセル文字と1ベース行番号文字に分割する。
