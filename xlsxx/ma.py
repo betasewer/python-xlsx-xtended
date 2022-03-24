@@ -101,8 +101,8 @@ class ExcelFile(OpcPackageFile):
         縦方向に値を読んで返す。
         Params:
             start(str): 開始セル参照
-            tailcolumn(str): 終了列参照
-            tailrow(str): 終了行参照
+            tailcolumn(str): 終了列参照（含む）
+            tailrow?(str): 終了行参照（含む）
         Returns:
             Tuple[Tuple[Str]]:
         """

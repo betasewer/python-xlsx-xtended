@@ -2,11 +2,13 @@
 """ @module
 Extra-Requirements:
     docxx
+DefModules:
+    xlsxx.ma
 """
 
 __version__ = '0.0.1.0'
 
-from docxx.opc.constants import CONTENT_TYPE as CT, RELATIONSHIP_TYPE as RT
+from docxx.opc.constants import CONTENT_TYPE as CT
 from docxx.opc.part import PartFactory
 
 from xlsxx.parts.sml import SmlSheetMainPart, SmlWorkSheetPart, SmlSharedStringsPart, SmlStylesPart

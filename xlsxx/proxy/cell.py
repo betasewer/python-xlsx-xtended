@@ -116,7 +116,7 @@ class CellRow(ElementProxy):
         elcell, inscell = find_cell_by_index(cells, column)
         if elcell is None:
             elcell, cells = self._add_cell(column, inscell, cells)
-        return Cell(elcell, self._element, self._workbook)
+        return Cell(elcell, self)
 
     def new_empties_until(self, column):
         """ 空のセルを複数追加する。
