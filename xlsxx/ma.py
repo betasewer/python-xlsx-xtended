@@ -109,3 +109,25 @@ class ExcelFile(OpcPackageFile):
         from xlsxx.proxy.sheet import read_sheet_vertical
         return read_sheet_vertical(self.cursheet(), start, tailcolumn, tailrow, sequence=sequence)
 
+    def write_v(self, start, rows):
+        """ @method
+        縦方向に値を書き込む。
+        Params:
+            start(str): 開始セル参照
+            rows(Any): 行のリスト
+        Returns:
+            Tuple[Tuple[Str]]:
+        """
+        from xlsxx.coord import ref_to_coord
+        srow, scol = ref_to_coord(start)
+
+        sheet = self.cursheet()
+        
+        writings = sheet.writing_cells()
+        for irow, row in enumerate(rows):
+            for icol, val in enumerate(row):
+                coord = (srow + irow, scol + icol)
+                writings.add(coord, val)
+        
+        sheet.write_texts(writings)
+

@@ -13,7 +13,7 @@ from docxx.shared import ElementProxy, AttributeProperty
 from docxx.element import remove_element, query
 from xlsxx.coord import (
     ref_to_coord, coord_to_ref, range_ref_to_coord, column_to_index, 
-    get_coord, get_range_coord, modify_range_ref
+    get_coord, get_range_coord, modify_range_ref, rowref_to_index, index_to_rowref
 )
 from xlsxx.proxy.cell import Cell, CellRow, CellRange, get_range_text
 
@@ -314,8 +314,9 @@ class Worksheet(ElementProxy):
         Returns:
             CellRange:
         """
-        tail, stop = _vertical_tail(self, lefttop, length)
-        return self.range(lefttop, (tail, lefttop[1]))
+        r1, c1 = get_coord(lefttop)
+        tail, stop = _vertical_tail(self, (r1, c1), length)
+        return self.range((r1, c1), (tail, c1))
     
     def get_vertical_range_text(self, lefttop, length=None, *, strmap=None):
         """
@@ -324,10 +325,11 @@ class Worksheet(ElementProxy):
             lefttop(Tuple/str): 開始点のセル
             length(int): 増分
         Returns:
-            List[Str]:
+            List[Tuple[Str, Tuple[int, int]]]:
         """
-        tail, stop = _vertical_tail(self, lefttop, length)
-        return self.get_range_text(lefttop, (tail, lefttop[1]), stop=stop, strmap=strmap)
+        r1, c1 = get_coord(lefttop)
+        tail, stop = _vertical_tail(self, (r1, c1), length)
+        return get_range_text(self, (r1, c1), (tail, c1), iterbreak=stop, strmap=strmap)
         
     def horizontal_range(self, lefttop, length=None):
         """
@@ -338,8 +340,9 @@ class Worksheet(ElementProxy):
         Returns:
             CellRange:
         """
-        tail = _horizontal_tail(self, lefttop, length)
-        return self.range(lefttop, (lefttop[0], tail))    
+        r1, c1 = get_coord(lefttop)
+        tail = _horizontal_tail(self, (r1, c1), length)
+        return self.range((r1, c1), (r1, tail))
     
     def get_horizontal_range_text(self, lefttop, length=None, *, strmap=None):
         """
@@ -348,10 +351,11 @@ class Worksheet(ElementProxy):
             lefttop(Tuple/str): 開始点のセル
             length(int): 増分
         Returns:
-            List[Str]:
+            List[Tuple[Str, Tuple[int, int]]]:
         """
-        tail, stop = _horizontal_tail(self, lefttop, length)
-        return self.get_range_text(lefttop, (lefttop[0], tail), stop=stop, strmap=strmap)    
+        r1, c1 = get_coord(lefttop)
+        tail, stop = _horizontal_tail(self, (r1, c1), length)
+        return get_range_text(self, (r1, c1), (r1, tail), iterbreak=stop, strmap=strmap)    
     
     #
     # 書き込み
@@ -368,8 +372,8 @@ class Worksheet(ElementProxy):
         p1, p2 = get_range_coord(lefttop, rightbottom)
         rmin, _cmin = p1
         rmax, cmax = p2
-        curmax = len(self._rows)-1 # 空の場合は-1になる
         # 空の行を追加する
+        curmax = len(self._rows)-1 # 空の場合は-1になる
         for i in range(rmax-curmax):
             self.add_row(curmax+i+1)
         # 各行を列方向に進捗する
@@ -389,6 +393,25 @@ class Worksheet(ElementProxy):
         row = self._element.sheetData._add_row()
         row.r = index + 1
 
+    def new_rows_until(self, rmax):
+        """
+        空の行を後ろに複数追加する。
+        Params:
+            rmax(int): 0ベース行番号
+        """
+        if self._rows:
+            el_tailrow = self._rows[-1]
+            irow = rowref_to_index(el_tailrow.r)
+            # TODO: 番号が飛んでいる行を埋める
+            for i in range(irow+1, rmax+1):
+                self.add_row(i)
+        else:
+            for i in range(rmax+1):
+                self.add_row(i)
+
+    #
+    #
+    #
     def write_rows_text(self, lefttop, rows):
         """
         行の値のリストを流し込む。
@@ -406,20 +429,52 @@ class Worksheet(ElementProxy):
                 if ci < len(row):
                     cell.text = row[ci]
 
-    def write_texts(self, coord_texts):
+    def write_texts(self, writings):
         """
         座標とテキストの組のリストから一気にセルへの書き込みを行う。
         Params:
-            coord_texts(List[Tuple[Tuple[int, int], str]]): 座標とテキストの組のリスト
+            writings(WritingCells): 座標とテキストの組のリスト
         """
-        rows = defaultdict(list)
-        for (row, col), text in coord_texts:
-            rows[row].append((col, text))
+        if not isinstance(writings, WritingCells):
+            raise TypeError("'writing' must be WritingCells instance")
+        
+        # 必要な行を確保する
+        mrow, _mcol = writings.maxcoord()
+        self.new_rows_until(mrow)        
 
-        for row, coltexts in rows.items():
+        for row, coltexts in writings.items():
             cellrow = self.row(row)
+            if cellrow is None:
+                raise ValueError("Row '{}' is not allocated".format(index_to_rowref(row)))
             cellrow.write_texts(coltexts)
+
+    def writing_cells(self):
+        return WritingCells()
     
+
+class WritingCells:
+    def __init__(self):
+        self._rows = defaultdict(list)
+        self._mincoord = None
+        self._maxcoord = None
+
+    def add(self, coord, value):
+        if not isinstance(coord, tuple):
+            raise TypeError("coord must be tuple")
+        row, col = coord
+        self._rows[row].append((col, value))
+        self._mincoord = min(self._mincoord, (row, col)) if self._mincoord is not None else (row, col)
+        self._maxcoord = min(self._maxcoord, (row, col)) if self._maxcoord is not None else (row, col)
+
+    def mincoord(self):
+        return self._mincoord
+    
+    def maxcoord(self):
+        return self._maxcoord
+    
+    def rows(self):
+        return self._rows.items()
+
 #
 #
 #
