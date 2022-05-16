@@ -235,6 +235,32 @@ def modify_range_ref(range, head=None, tail=None, headcol=None, tailcol=None, he
     return "{}:{}".format(h, t)
 
 #
+# イテレータ
+#
+def iter_coords(coords, coord2=None):
+    """ 
+    含まれる座標を左上から右下へ返す 
+    Params:
+        head(Tuple[int, int]): 開始座標、または座標の組
+        tail?(Tuple[int, int]): 終了座標（含む）
+    """
+    if coord2 is None and isinstance(coords[0], int):
+        yield coords[0]
+        return
+    
+    if coord2:
+        srow, scol = coords
+        trow, tcol = coord2
+    else:
+        srow, scol = coords[0]
+        trow, tcol = coords[1]
+    
+    for irow in range(srow, trow+1):
+        for icol in range(scol, tcol+1):
+            yield (irow, icol)
+    
+
+#
 #
 # 整数座標組への変換インターフェース
 #
@@ -258,7 +284,7 @@ def get_coord(coord):
             c = column_to_index(c)
         return r, c
 
-def get_range_coord(range, arg2=None, arg3=None, arg4=None, *, rownum=None, columnnum=None):
+def get_range_coord(coordrange, arg2=None, *, rownum=None, columnnum=None):
     """
     セル範囲参照、または座標の組を0ベース座標に分解する。
     Params:
@@ -273,27 +299,26 @@ def get_range_coord(range, arg2=None, arg3=None, arg4=None, *, rownum=None, colu
     """
     if rownum or columnnum:
         # 左上セル ＋ 増分
-        r1, c1 = get_coord(range)
+        r1, c1 = get_coord(coordrange)
         if r1 is None or c1 is None:
             raise TypeError("左上セルの指定に誤りがあります")
         r2 = r1 + (rownum or 1)
         c2 = c1 + (columnnum or 1)
         return (r1, c1), (r2, c2)
 
-    if all(x is None for x in (arg2, arg3, arg4)):
+    if arg2 is None:
         # 引数1: 範囲指定一つ
-        if isinstance(range, str):
-            c1, c2 = range_ref_to_coord(range)
+        if isinstance(coordrange, str):
+            c1, c2 = range_ref_to_coord(coordrange)
             return c1, c2
         else:
-            p1, p2 = range
+            p1, p2 = coordrange
             return p1, p2
-    
-    elif arg3 is None and arg4 is None:
+    else:
         # 引数2: 左上セルと右下セルの指定
         if not isinstance(arg2, (str, tuple)):
             raise TypeError("(2) arg2 には座標が必要です")
-        return get_coord(range), get_coord(arg2)
+        return get_coord(coordrange), get_coord(arg2)
 
 
 
