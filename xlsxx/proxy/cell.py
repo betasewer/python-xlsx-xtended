@@ -9,7 +9,8 @@ from xlsxx.coord import (
     rowref_to_index, modify_ref, split_ref
 )
 from xlsxx.proxy.styles import (
-    NUMVAL_TYPE_NUMBER,
+    NUMVAL_TYPE_INT,
+    NUMVAL_TYPE_FLOAT,
     NUMVAL_TYPE_DATETIME,
     NUMVAL_TYPE_TIME
 )
@@ -119,7 +120,7 @@ class CellRow(ElementProxy):
         return Cell(elcell, self)
 
     def new_empties_until(self, column):
-        """ 空のセルを複数追加する。
+        """ 指定の列に達するまでセルを末尾に追加する。
         Params:
             columnindex(int): カラム0座標
         """
@@ -127,7 +128,7 @@ class CellRow(ElementProxy):
         if cur >= column:
             return
         for i in range(column-cur):
-            self._add_cell(cur+i+1)
+            self._add_cell(cur+i+1, inspoint=INSERTCELL_APPEND)
 
     def _add_cell(self, column, inspoint=None, cells=None):
         """ 空のセルを追加する。
@@ -163,20 +164,20 @@ class CellRow(ElementProxy):
             return
         book = self.workbook
         cells = self._element.c_lst
-        cellhead = 0
+        icell = 0
         for col, text in sorted(column_texts, key=lambda x:x[0]):
             # 書き込み先セルを順に探す
             destcell = None
-            while cellhead < len(cells):
-                cell = cells[cellhead]
+            while icell < len(cells):
+                cell = cells[icell]
                 cellcol = ref_to_coord(cell.r)[1]
                 if cellcol == col:
                     destcell = cell
                     break
                 elif cellcol > col:
-                    destcell, cells = self._add_cell(col, cellhead, cells) # cellsも更新する必要がある
+                    destcell, cells = self._add_cell(col, icell, cells) # cellsも更新する必要がある
                     break
-                cellhead += 1
+                icell += 1
             else:
                 destcell, cells = self._add_cell(col, INSERTCELL_APPEND, cells)
             
@@ -199,17 +200,23 @@ def find_cell_by_index(cells, columnindex):
 def get_row_range_cell(rowkey, element, head, tail, emptynone):
     if not isinstance(rowkey, str):
         raise ValueError("CellRow.ref has unexpected value")
+    
     if tail == -1:
-        raise ValueError("Specify the column tail with an existing index value, not -1")
-    celldict = {modify_ref("", rowkey, icol):i for i,icol in enumerate(range(head, tail+1))}
-    cells = [None for _ in range(len(celldict))]
-    empty = True
-    for c in element.c_lst:
-        cellref = c.r
-        if cellref in celldict:
-            cells[celldict[cellref]] = c
-            empty = False
-    if empty and emptynone:
+        celldict = {}
+        maxcol = 0
+        for c in element.c_lst:
+            _ir, ic = ref_to_coord(c.r)
+            maxcol = max(maxcol, ic)
+            celldict[ic] = c
+        cells = [celldict.get(i, None) for i in range(head, maxcol+1)]
+    else:
+        celldict = {}
+        for c in element.c_lst:
+            _ir, ic = ref_to_coord(c.r)
+            celldict[ic] = c
+        cells = [celldict.get(i, None) for i in range(head, tail+1)]
+    
+    if not celldict and emptynone:
         return None
     return cells
 
@@ -231,12 +238,15 @@ def get_cell_value(element, book):
     if celltype in (ST_CellType.SHARED_STRING): # 共有文字列型
         return get_cell_shared_text(book, val)
     elif celltype == ST_CellType.NUMBER:
-        if get_cell_number_format(element, book).type == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
+        numtype = get_cell_number_value_type(element, book)
+        if numtype == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
             return get_cell_datetime_value(element)
-        elif get_cell_number_format(element, book).type == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
+        elif numtype == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
             return get_cell_time_value(element)
-        else:                                               # 数値 - その他の型
-            return float(val)
+        elif numtype == NUMVAL_TYPE_FLOAT:  # 数値 - 浮動小数点
+            return float(val) 
+        else:                               # 数値 - 整数
+            return int(val) 
     else: # その他の型、ブール型、エラー型、空のセルはそのまま
         return val
 
@@ -284,9 +294,9 @@ def get_cell_time_value(element, time=None):
     fl = float(element.value())
     return time.convert_to_time(fl)
     
-def get_cell_number_format(element, book):
+def get_cell_number_value_type(element, book):
     style_index = element.s
-    return book.style_sheet.get_format(style_index).number_format
+    return book.style_sheet.get_format(style_index).number_value_type
 
 #
 #
@@ -308,7 +318,7 @@ def set_cell_text(element, book, value):
 class Cell(ElementProxy):
     def __init__(self, element, row):
         super(Cell, self).__init__(element, row) # parent == CellRow
-        self._numfmt = None  # 書式バッファ
+        self._xfmt = None  # スタイルバッファ
 
     @property
     def cellrow(self):
@@ -336,11 +346,17 @@ class Cell(ElementProxy):
     def is_error(self):
         return self._type == ST_CellType.ERROR
     
+    def is_integer(self):
+        return self.is_number() and self.style.number_value_type == NUMVAL_TYPE_INT
+    
+    def is_float(self):
+        return self.is_number() and self.style.number_value_type == NUMVAL_TYPE_FLOAT
+    
     def is_datetime(self):
-        return self.is_number() and self.number_format.type == NUMVAL_TYPE_DATETIME
+        return self.is_number() and self.style.number_value_type == NUMVAL_TYPE_DATETIME
     
     def is_time(self):
-        return self.is_number() and self.number_format.type == NUMVAL_TYPE_TIME
+        return self.is_number() and self.style.number_value_type == NUMVAL_TYPE_TIME
         
     def get_value(self):
         return get_cell_value(self._element, self.workbook)
@@ -414,16 +430,13 @@ class Cell(ElementProxy):
     #
     @property
     def style(self):
-        style_index = self._element.s
-        return self.workbook.style_sheet.get_format(style_index)
-    
-    @property
-    def number_format(self):
-        f = self._numfmt
+        f = self._xfmt
         if f is None:
-            f = self.style.number_format
-            self._numfmt = f
+            style_index = self._element.s
+            f = self.workbook.style_sheet.get_format(style_index)
+            self._xfmt = f
         return f
+    
 
 
 class CellRange:

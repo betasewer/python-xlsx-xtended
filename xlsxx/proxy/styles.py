@@ -124,6 +124,20 @@ class CellFormat(ElementProxy):
         return self._ss.get_number_format_by_id(id)
     
     @property
+    def number_value_type(self):
+        id = self._element.numFmtId
+        if id is None:
+            return None
+        fmt = self._ss.get_number_format_by_id(id)
+        if fmt is not None:
+            return numfmt_lib.detect_value_type(fmt.code)
+        else:
+            code = numfmt_lib.get_format(id)
+            if code is None:
+                return None
+            return numfmt_lib.detect_value_type(code)
+    
+    @property
     def font(self):
         idx = self._element.fontId
         if idx is None:
@@ -164,7 +178,10 @@ class StyleSheet(ElementProxy):
         self._part = part
 
     def get_number_format_by_id(self, id):
-        for elem in self._element.numFmts.numFmt_lst:
+        numFmts = self._element.numFmts
+        if numFmts is None:
+            return None
+        for elem in numFmts.numFmt_lst:
             nf = NumberFormat(elem)
             if nf.id == id:
                 return nf
@@ -207,9 +224,10 @@ FORMAT_DATETIME = 10 # 18935.0560763889 @ YYYY/MM/DD H:MM = 1951/11/3 1:20:45
 FORMAT_TIME = 11     # 0.0560763889 @ H:MM = 1:20:45
 FORMAT_TEXT = 20     # そのまま
 
-NUMVAL_TYPE_NUMBER   = 0 # 値を数値として解釈
+NUMVAL_TYPE_INT      = 0 # 値を整数として解釈
 NUMVAL_TYPE_DATETIME = 1 # 値を日付＋時刻として解釈
 NUMVAL_TYPE_TIME     = 2 # 値を時刻として解釈
+NUMVAL_TYPE_FLOAT    = 3 # 値を小数として解釈
 
 class NumFmtLibrary:
     def __init__(self):
@@ -226,6 +244,9 @@ class NumFmtLibrary:
     def adds_type(self, *entries):
         for format, type in entries:
             self._fmt_to_types[format] = type
+
+    def get_format(self, code):
+        return self._code_to_fmt.get(code)
         
     def detect_std_format(self, format):
         if format in self._fmt_to_types:
@@ -245,14 +266,18 @@ class NumFmtLibrary:
                 return NUMVAL_TYPE_DATETIME
             elif type == FORMAT_TIME:
                 return NUMVAL_TYPE_TIME
+            elif type in (FORMAT_FLOAT, FORMAT_PERCENT, FORMAT_EXP, FORMAT_FRACTION, FORMAT_CURRENCY):
+                return NUMVAL_TYPE_FLOAT
             else:
-                return NUMVAL_TYPE_NUMBER
+                return NUMVAL_TYPE_INT
         format = self._make_valtype_detection_string(format)
         if any(x in format for x in ('hh', 'h', 'mm:', 'm:', 'ss', 's')):
             return NUMVAL_TYPE_TIME
         if any(x in format for x in ('yyyy', 'yy', 'ggge', 'ge', 'mm', 'm', 'dd', 'd', 'ww')):
             return NUMVAL_TYPE_DATETIME
-        return NUMVAL_TYPE_NUMBER
+        if "." in format or "%" in format or "E" in format:
+            return NUMVAL_TYPE_FLOAT
+        return NUMVAL_TYPE_INT
     
     def _make_valtype_detection_string(self, fmt):
         fmt = fmt.lower()
