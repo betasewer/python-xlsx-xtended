@@ -429,7 +429,7 @@ class Worksheet(ElementProxy):
                 if ci < len(row):
                     cell.text = row[ci]
 
-    def write_texts(self, writings):
+    def write_cells(self, writings):
         """
         座標とテキストの組のリストから一気にセルへの書き込みを行う。
         Params:
@@ -442,29 +442,36 @@ class Worksheet(ElementProxy):
         mrow, _mcol = writings.maxcoord()
         self.new_rows_until(mrow)        
 
-        for row, coltexts in writings.items():
-            cellrow = self.row(row)
+        cellrows = {}
+        for cellrow in self._rows:
+            rowindex = int(cellrow.r)-1
+            if writings.has_row(rowindex):
+                cellrows[rowindex] = CellRow(cellrow, self)
+
+        for row, coltexts in writings.rows():
+            cellrow = cellrows.get(row)
             if cellrow is None:
                 raise ValueError("Row '{}' is not allocated".format(index_to_rowref(row)))
-            cellrow.write_texts(coltexts)
+            cellrow.write(coltexts, as_values=writings.as_values())
 
-    def writing_cells(self):
-        return WritingCells()
+    def writing_cells(self, *, as_values=False):
+        return WritingCells(as_values=as_values)
     
 
 class WritingCells:
-    def __init__(self):
+    def __init__(self, *, as_values=False):
         self._rows = defaultdict(list)
         self._mincoord = None
         self._maxcoord = None
+        self._asvalues = as_values
 
     def add(self, coord, value):
         if not isinstance(coord, tuple):
             raise TypeError("coord must be tuple")
         row, col = coord
         self._rows[row].append((col, value))
-        self._mincoord = min(self._mincoord, (row, col)) if self._mincoord is not None else (row, col)
-        self._maxcoord = min(self._maxcoord, (row, col)) if self._maxcoord is not None else (row, col)
+        self._mincoord = (row, col) if self._mincoord is None else min(self._mincoord, (row, col)) 
+        self._maxcoord = (row, col) if self._maxcoord is None else max(self._maxcoord, (row, col))
 
     def mincoord(self):
         return self._mincoord
@@ -474,6 +481,12 @@ class WritingCells:
     
     def rows(self):
         return self._rows.items()
+
+    def has_row(self, index):
+        return index  in self._rows
+
+    def as_values(self):
+        return self._asvalues
 
 #
 #

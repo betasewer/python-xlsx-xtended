@@ -109,7 +109,7 @@ class ExcelFile(OpcPackageFile):
         from xlsxx.proxy.sheet import read_sheet_vertical
         return read_sheet_vertical(self.cursheet(), start, tailcolumn, tailrow, sequence=sequence)
 
-    def write_v(self, start, rows):
+    def write_v(self, start, rows, *, as_values=False):
         """ @method
         縦方向に値を書き込む。
         Params:
@@ -123,11 +123,29 @@ class ExcelFile(OpcPackageFile):
 
         sheet = self.cursheet()
         
-        writings = sheet.writing_cells()
+        writings = sheet.writing_cells(as_values=as_values)
         for irow, row in enumerate(rows):
             for icol, val in enumerate(row):
                 coord = (srow + irow, scol + icol)
                 writings.add(coord, val)
         
-        sheet.write_texts(writings)
+        sheet.write_cells(writings)
 
+    def write_cells(self, coord_text_dict, *, as_values=False):
+        """ @method
+        それぞれのセルに値を書き込む。
+        Params:
+            coord_text_dict(Any): 座標参照と値の組み合わせの辞書
+        Returns:
+            Tuple[Tuple[Str]]:
+        """
+        from xlsxx.coord import ref_to_coord
+
+        sheet = self.cursheet()
+        
+        writings = sheet.writing_cells(as_values=as_values)
+        for ref, val in coord_text_dict.items():
+            coord = ref_to_coord(ref)
+            writings.add(coord, val)
+        
+        sheet.write_cells(writings)

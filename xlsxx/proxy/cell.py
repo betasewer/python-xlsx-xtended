@@ -154,18 +154,25 @@ class CellRow(ElementProxy):
         cell.r = modify_ref("", row=self.ref, col=index_to_column(column))
         return cell, cells
 
-    def write_texts(self, column_texts):
+    def write(self, column_values, *, as_values=False):
         """
         行にテキストを一度に書き込む
         Params:
-            column_texts(List[Tuple[int, str]]): カラムとテキストの組のリスト
+            column_values(List[Tuple[int, str]]): カラムとテキストの組のリスト
+            as_values(bool): テキスト型ではなく、値型を保存して書き込む
         """
-        if not column_texts:
+        if not column_values:
             return
+        
+        if as_values:
+            setter = set_cell_value
+        else:
+            setter = set_cell_text
+
         book = self.workbook
         cells = self._element.c_lst
         icell = 0
-        for col, text in sorted(column_texts, key=lambda x:x[0]):
+        for col, val in sorted(column_values, key=lambda x:x[0]):
             # 書き込み先セルを順に探す
             destcell = None
             while icell < len(cells):
@@ -182,7 +189,7 @@ class CellRow(ElementProxy):
                 destcell, cells = self._add_cell(col, INSERTCELL_APPEND, cells)
             
             # 書き込む
-            set_cell_text(destcell, book, text)
+            setter(destcell, book, val)
     
 class INSERTCELL_APPEND:
     pass
@@ -313,6 +320,19 @@ def set_cell_text(element, book, value):
         modid = book.shared_strings._set_pending_text(-1, element, value)
         element.v.text = "M{}".format(modid)
 
+def set_cell_value(element, book, value):
+    if isinstance(value, str):
+        set_cell_text(element, book, value)
+    elif isinstance(value, (int, float)):
+        element.t = ST_CellType.NUMBER
+        element.set_value(value)
+    elif isinstance(value, bool):
+        element.t = ST_CellType.BOOLEAN
+        element.set_value(value)
+    else:
+        set_cell_text(element, book, value)
+
+
 """
 """
 class Cell(ElementProxy):
@@ -365,6 +385,11 @@ class Cell(ElementProxy):
         # とりあえず空文字列を代入。これでいいのか？
         self._element.t = ST_CellType.STR
         self._element.get_or_add_v().text = ""
+        self._v = None
+
+    def set_value(self, t, v):
+        self._element.t = t
+        self._element.get_or_add_v().text = str(v)
         self._v = None
     
     def get_text(self, shared_strings_map=None):

@@ -51,8 +51,8 @@ setup(
     
     description='Create and update Microsoft Excel .xlsx files.',
     long_description=long_description,
+    
     keywords='xlsx office openxml word',
-
     classifiers=[
         'Development Status :: 1 - Planning',
         'Environment :: Console',
