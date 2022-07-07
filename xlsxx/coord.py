@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+import itertools
 import re
 import string
 
@@ -239,7 +240,8 @@ def modify_range_ref(range, head=None, tail=None, headcol=None, tailcol=None, he
 #
 def iter_coords(coords, coord2=None):
     """ 
-    含まれる座標を左上から右下へ返す 
+    含まれる座標を左上から右下へ返す。
+    -1で終わる場合は無限イテレータになる。
     Params:
         head(Tuple[int, int]): 開始座標、または座標の組
         tail?(Tuple[int, int]): 終了座標（含む）
@@ -254,11 +256,28 @@ def iter_coords(coords, coord2=None):
     else:
         srow, scol = coords[0]
         trow, tcol = coords[1]
+
+    if trow == -1 and tcol == -1:
+        raise ValueError("行または列のいずれかが有限でなければいけません")
+
+    if trow == -1:
+        if tcol - scol < 0:
+            raise ValueError("無限ループが停止しません")
+        rows = itertools.count(srow)
+    else:
+        rows = range(srow, trow+1)
     
-    for irow in range(srow, trow+1):
-        for icol in range(scol, tcol+1):
+    if tcol == -1:
+        if trow - srow < 0:
+            raise ValueError("無限ループが停止しません")
+        cols = itertools.count(scol)
+    else:
+        cols = range(scol, tcol+1)
+    
+    for irow in rows:
+        for icol in cols:
             yield (irow, icol)
-    
+
 
 #
 #

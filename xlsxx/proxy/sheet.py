@@ -437,6 +437,8 @@ class Worksheet(ElementProxy):
         """
         if not isinstance(writings, WritingCells):
             raise TypeError("'writing' must be WritingCells instance")
+        if writings.empty():
+            return
         
         # 必要な行を確保する
         mrow, _mcol = writings.maxcoord()
@@ -464,6 +466,9 @@ class WritingCells:
         self._mincoord = None
         self._maxcoord = None
         self._asvalues = as_values
+
+    def empty(self):
+        return len(self._rows) == 0
 
     def add(self, coord, value):
         if not isinstance(coord, tuple):
