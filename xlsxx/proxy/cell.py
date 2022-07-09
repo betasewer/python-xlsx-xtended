@@ -105,8 +105,8 @@ class CellRow(ElementProxy):
         Returns:
             List[Cell]:
         """
-        cells = get_row_range_cell(self.ref, self._element, head, tail, emptynone=emptynone)
-        if cells is None:
+        cells = get_row_range_cell(self._element, head, tail)
+        if not cells:
             return None
         return [Cell(c, self) if c is not None else None for c in cells]
         
@@ -114,7 +114,7 @@ class CellRow(ElementProxy):
         if column < 0:
             return None
         cells = self._cells
-        elcell, inscell = find_cell_by_index(cells, column)
+        elcell, inscell = find_cell_insertion_point(cells, column)
         if elcell is None:
             elcell, cells = self._add_cell(column, inscell, cells)
         return Cell(elcell, self)
@@ -142,7 +142,7 @@ class CellRow(ElementProxy):
         if cells is None:
             cells = self._cells
         if inspoint is None:
-            cell, inspoint = find_cell_by_index(cells, column)
+            cell, inspoint = find_cell_insertion_point(cells, column)
         if inspoint is not None:
             cell = self._element._add_c()
             if inspoint is INSERTCELL_APPEND:
@@ -194,7 +194,16 @@ class CellRow(ElementProxy):
 class INSERTCELL_APPEND:
     pass
 
-def find_cell_by_index(cells, columnindex):
+def find_cell_insertion_point(cells, columnindex):
+    """
+    セル要素リストの中からセルと挿入点を探し出す。
+    Params:
+        cells(List[xlsxx.CT_Cell]): セル要素リスト
+        columnindex(int): セル列番号
+    Returns:
+        xlsx.CT_Cell:
+        int|INSERTCELL_APPEND|None: 挿入点のセル列番号
+    """
     colindices = [ref_to_coord(c.r)[1] for c in cells]
     pos = bisect.bisect_left(colindices, columnindex)
     if pos < len(colindices) and colindices[pos] == columnindex:
@@ -204,10 +213,16 @@ def find_cell_by_index(cells, columnindex):
     else:
         return None, pos # このセルの前に新規追加
 
-def get_row_range_cell(rowkey, element, head, tail, emptynone):
-    if not isinstance(rowkey, str):
-        raise ValueError("CellRow.ref has unexpected value")
-    
+def get_row_range_cell(element, head, tail): #emptynone):
+    """
+    一行内のある列範囲のセル要素を全て得る。
+    Params:
+        element(xlsxx.CT_Row): 行の要素
+        head(str): 開始列参照
+        tail(str): 終了列参照（含む）
+    Returns:
+        List[xlsxx.CT_Cell]: セル要素のリスト
+    """
     if tail == -1:
         celldict = {}
         maxcol = 0
@@ -223,8 +238,6 @@ def get_row_range_cell(rowkey, element, head, tail, emptynone):
             celldict[ic] = c
         cells = [celldict.get(i, None) for i in range(head, tail+1)]
     
-    if not celldict and emptynone:
-        return None
     return cells
 
 #
@@ -232,7 +245,7 @@ def get_row_range_cell(rowkey, element, head, tail, emptynone):
 # セルの実装関数
 #
 #
-def get_cell_value(element, book):
+def get_cell_value(element, book, shared_strings_map=None, column_number_types=None):
     """
     Params:
         element(Element): 要素
@@ -242,22 +255,27 @@ def get_cell_value(element, book):
     if val is None:
         return None
     celltype = element.t
-    if celltype in (ST_CellType.SHARED_STRING): # 共有文字列型
-        return get_cell_shared_text(book, val)
+    if celltype == ST_CellType.SHARED_STRING: # 共有文字列型
+        return get_cell_shared_text(book, val, shared_strings_map)
     elif celltype == ST_CellType.NUMBER:
-        numtype = get_cell_number_value_type(element, book)
+        if column_number_types is not None:
+            numtype = column_number_types.get(split_ref(element.r)[0], NUMVAL_TYPE_FLOAT)
+        else:
+            numtype = get_cell_number_value_type(element, book)
         if numtype == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
             return get_cell_datetime_value(element)
         elif numtype == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
             return get_cell_time_value(element)
         elif numtype == NUMVAL_TYPE_FLOAT:  # 数値 - 浮動小数点
             return float(val) 
-        else:                               # 数値 - 整数
-            return int(val) 
+        elif "." in val:                      # 数値 - 整数
+            return float(val) 
+        else:
+            return int(val)
     else: # その他の型、ブール型、エラー型、空のセルはそのまま
         return val
 
-def get_cell_text(element, book, shared_strings_map=None):
+def get_cell_text(element, book, shared_strings_map=None, column_number_types=None):
     """ 
     文字列の値を取り出す
     Params:
@@ -271,7 +289,7 @@ def get_cell_text(element, book, shared_strings_map=None):
     if element.t == ST_CellType.SHARED_STRING:
         return get_cell_shared_text(book, v, shared_strings_map)
     else:
-        v = get_cell_value(element, book)
+        v = get_cell_value(element, book, column_number_types=column_number_types)
         if v is None:
             return ""
         return str(v)
@@ -526,30 +544,35 @@ class CellRange:
 #
 #
 #
-def get_range_text(sheet, lefttop, rightbottom, *, iterbreak=True, strmap=None):
+def get_range_values(sheet, lefttop, rightbottom, readingdef):
     """
     Params:
         sheet(Proxy): ワークシート
     Returns:    
         List[Tuple[Str, Tuple[int, int]]]: (テキスト、座標)のリスト　行の区別のない一次元のリスト
     """
-    texts = []
+    values = []
     r1, c1 = lefttop
     r2, c2 = rightbottom
     book = sheet.workbook
     rlast = r2 + 1 if r2 >= 0 else None
+    #
+    asvalues = readingdef.asvalues
+    default_value = readingdef.default_value
+    strmap = readingdef.strmap
+    colnumtypes = readingdef.column_number_types
     for row in sheet.element.sheetData.row_lst[r1:rlast]:
-        rowletter = str(row.r)
-        cs = get_row_range_cell(rowletter, row, c1, c2, iterbreak)
-        #if iterbreak and cs is None:
-        #    break
-        if cs is None:
+        cs = get_row_range_cell(row, c1, c2)
+        if not cs:
             continue
         for ci, cell in enumerate(cs, start=c1):
             if cell is not None:
-                text = get_cell_text(cell, book, strmap)
+                if asvalues:
+                    val = get_cell_value(cell, book, strmap, colnumtypes)
+                else:
+                    val = get_cell_text(cell, book, strmap, colnumtypes)
             else:
-                text = ""
-            coord = (rowref_to_index(rowletter), ci)
-            texts.append((text, coord))
-    return texts
+                val = default_value
+            coord = (rowref_to_index(row.r), ci)
+            values.append((val, coord))
+    return values

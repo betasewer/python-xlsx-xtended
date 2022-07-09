@@ -1,13 +1,13 @@
 from typing import List
 
 from xlsxx.api import open_xlsx
-from xlsxx.coord import ref_to_coord
+from xlsxx.coord import column_to_index, index_to_column, ref_to_coord
 
 from docxx.ma import OpcPackageFile
 
 from xlsxx.parts.sml import SmlSheetMainPart
 from xlsxx.proxy.workbook import Workbook
-from xlsxx.proxy.sheet import Worksheet
+from xlsxx.proxy.sheet import ReadingCells, Worksheet
 
 
 class ExcelFile(OpcPackageFile):
@@ -96,21 +96,42 @@ class ExcelFile(OpcPackageFile):
         """
         return self.load()
     
-    def read_v(self, start, tailcolumn, tailrow=-1, sequence=True):
-        """ @method
+    def read_v(self, start, tailcolumn, tailrow=-1, sequential=True):
+        """ @task
         縦方向に値を読んで返す。
         Params:
             start(str): 開始セル参照
             tailcolumn(str): 終了列参照（含む）
             tailrow?(str): 終了行参照（含む）
+            sequential?(bool): 空の行があったら読み込みを止める
         Returns:
             Tuple[Tuple[Str]]:
         """
-        from xlsxx.proxy.sheet import read_sheet_vertical
-        return read_sheet_vertical(self.cursheet(), start, tailcolumn, tailrow, sequence=sequence)
+        from xlsxx.proxy.sheet import read_sheet_rows
+        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingdef=ReadingCells(sequential=sequential))
+
+    def read_columns(self, start, columns, tailrow=-1, sequential=True):
+        """ @task
+        値のタイプを指定して値を読んで返す。
+        Params:
+            start(str): 開始セル参照
+            columns(Tuple[str]): 値タイプの並び
+            tailrow?(str): 終了行参照（含む）
+        Returns:
+            Tuple[Tuple[Str]]:
+        """
+        if not columns:
+            raise ValueError("カラム指定が空です")
+        from xlsxx.proxy.sheet import read_sheet_rows
+        startindex = ref_to_coord(start)[1]
+        rdef = ReadingCells(sequential=sequential)
+        for i, col in enumerate(columns, start=startindex):
+            rdef.set_column_type(index_to_column(i), col)
+        tailcolumn = startindex + len(columns) - 1
+        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingdef=rdef)
 
     def write_v(self, start, rows, *, as_values=False):
-        """ @method
+        """ @task
         縦方向に値を書き込む。
         Params:
             start(str): 開始セル参照
@@ -132,7 +153,7 @@ class ExcelFile(OpcPackageFile):
         sheet.write_cells(writings)
 
     def write_cells(self, coord_text_dict, *, as_values=False):
-        """ @method
+        """ @task
         それぞれのセルに値を書き込む。
         Params:
             coord_text_dict(Any): 座標参照と値の組み合わせの辞書

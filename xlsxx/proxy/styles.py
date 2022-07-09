@@ -270,24 +270,30 @@ class NumFmtLibrary:
                 return NUMVAL_TYPE_FLOAT
             else:
                 return NUMVAL_TYPE_INT
-        format = self._make_valtype_detection_string(format)
+            
+        format = self.make_valtype_detection_string(format)
         if any(x in format for x in ('hh', 'h', 'mm:', 'm:', 'ss', 's')):
             return NUMVAL_TYPE_TIME
         if any(x in format for x in ('yyyy', 'yy', 'ggge', 'ge', 'mm', 'm', 'dd', 'd', 'ww')):
             return NUMVAL_TYPE_DATETIME
-        if "." in format or "%" in format or "E" in format:
+
+        if any(x in format for x in (".","%","e","/")):
+            # 小数点・パーセント・指数表記・分数
             return NUMVAL_TYPE_FLOAT
+        
         return NUMVAL_TYPE_INT
     
-    def _make_valtype_detection_string(self, fmt):
+    def make_valtype_detection_string(self, fmt):
         fmt = fmt.lower()
-        fmt = re.sub(r'''(\"[^\"]*?\")''', lambda m:" ", fmt) # リテラルを消去する
+        fmt = re.sub(r'''(\"[^\"]*?\")''', lambda m:" ", fmt) # ""でくくられたリテラルを消去する
+        fmt = re.sub(r'''(\[[^\]]*?\])''', lambda m:" ", fmt) # []でくくられた色指定？を消去する
         return fmt
 
 
 numfmt_lib = NumFmtLibrary()
 numfmt_lib.adds(
     (0, 'General', FORMAT_GENERAL),
+    (0, 'Standard', FORMAT_GENERAL),
     (1, '0', FORMAT_NUMBER),
     (2, '0.00', FORMAT_FLOAT),
     (3, '#,##0', FORMAT_NUMBER),

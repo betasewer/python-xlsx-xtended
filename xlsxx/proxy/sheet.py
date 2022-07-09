@@ -15,7 +15,7 @@ from xlsxx.coord import (
     ref_to_coord, coord_to_ref, range_ref_to_coord, column_to_index, 
     get_coord, get_range_coord, modify_range_ref, rowref_to_index, index_to_rowref
 )
-from xlsxx.proxy.cell import Cell, CellRow, CellRange, get_range_text
+from xlsxx.proxy.cell import Cell, CellRow, CellRange, get_range_values
 
 """
 """
@@ -291,7 +291,7 @@ class Worksheet(ElementProxy):
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
         return CellRange(self, p1, p2)
     
-    def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, stop=True, strmap=None):
+    def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, readingdef=None):
         """
         矩形のセル範囲のテキストを取得する。
         Params:
@@ -303,7 +303,7 @@ class Worksheet(ElementProxy):
             List[Tuple[Str, Str]]: セル文字列、セル参照のタプルのリスト
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
-        return get_range_text(self, p1, p2, iterbreak=stop, strmap=strmap)
+        return get_range_values(self, p1, p2, readingdef=readingdef)
 
     def vertical_range(self, lefttop, length=None):
         """
@@ -318,7 +318,7 @@ class Worksheet(ElementProxy):
         tail, stop = _vertical_tail(self, (r1, c1), length)
         return self.range((r1, c1), (tail, c1))
     
-    def get_vertical_range_text(self, lefttop, length=None, *, strmap=None):
+    def get_vertical_range_text(self, lefttop, length=None, *, readingdef=None):
         """
         開始点から縦1列の範囲のテキストを取得する。
         Params:
@@ -329,7 +329,7 @@ class Worksheet(ElementProxy):
         """
         r1, c1 = get_coord(lefttop)
         tail, stop = _vertical_tail(self, (r1, c1), length)
-        return get_range_text(self, (r1, c1), (tail, c1), iterbreak=stop, strmap=strmap)
+        return get_range_values(self, (r1, c1), (tail, c1), readingdef=readingdef)
         
     def horizontal_range(self, lefttop, length=None):
         """
@@ -344,7 +344,7 @@ class Worksheet(ElementProxy):
         tail = _horizontal_tail(self, (r1, c1), length)
         return self.range((r1, c1), (r1, tail))
     
-    def get_horizontal_range_text(self, lefttop, length=None, *, strmap=None):
+    def get_horizontal_range_text(self, lefttop, length=None, *, readingdef=None):
         """
         開始点から横1行の範囲のテキストを取得する。
         Params:
@@ -355,7 +355,7 @@ class Worksheet(ElementProxy):
         """
         r1, c1 = get_coord(lefttop)
         tail, stop = _horizontal_tail(self, (r1, c1), length)
-        return get_range_text(self, (r1, c1), (r1, tail), iterbreak=stop, strmap=strmap)    
+        return get_range_values(self, (r1, c1), (r1, tail), readingdef=readingdef)    
     
     #
     # 書き込み
@@ -460,6 +460,48 @@ class Worksheet(ElementProxy):
         return WritingCells(as_values=as_values)
     
 
+"""
+"""
+class Column(ElementProxy):
+    min = AttributeProperty("min")
+    max = AttributeProperty("max")
+    width = AttributeProperty("width")
+
+#
+#
+#
+def _vertical_tail(proxy, lefttop, length):
+    if length is None:
+        tail = proxy.last_row
+        stop = True
+    else:
+        if length <= 0:
+            raise ValueError("長さは1以上必要です")
+        tail = lefttop[0] + length - 1
+        stop = False
+    return tail, stop
+
+def _horizontal_tail(proxy, lefttop, length):
+    if length is None:
+        tail = proxy.last_column
+    else:
+        if length <= 0:
+            raise ValueError("長さは1以上必要です")
+        tail = lefttop[1] + length - 1
+    return tail
+
+
+#
+#
+#
+class ComlumnDef:
+    def __init__(self, ref, type):
+        self.ref = ref
+        self.type = type
+    
+#
+#
+#
 class WritingCells:
     def __init__(self, *, as_values=False):
         self._rows = defaultdict(list)
@@ -493,42 +535,62 @@ class WritingCells:
     def as_values(self):
         return self._asvalues
 
-#
-#
-#
-def _vertical_tail(proxy, lefttop, length):
-    if length is None:
-        tail = proxy.last_row
-        stop = True
-    else:
-        if length <= 0:
-            raise ValueError("長さは1以上必要です")
-        tail = lefttop[0] + length - 1
-        stop = False
-    return tail, stop
 
-def _horizontal_tail(proxy, lefttop, length):
-    if length is None:
-        tail = proxy.last_column
-    else:
-        if length <= 0:
-            raise ValueError("長さは1以上必要です")
-        tail = lefttop[1] + length - 1
-    return tail
+class ReadingCells:
+    def __init__(self, *, 
+        sequential=False, 
+        nofetch=False, 
+        as_values=False,
+        column_types=None
+    ):
+        self.sequential = sequential
+        self.nofetch = nofetch
+        self.asvalues = as_values
+        self._strmap = None
+        self._coltypes = column_types
 
+    def set_strmap(self, strmap):
+        self._strmap = strmap
 
-"""
-"""
-class Column(ElementProxy):
-    min = AttributeProperty("min")
-    max = AttributeProperty("max")
-    width = AttributeProperty("width")
+    def set_column_type(self, columnref, type):
+        # フォーマットを指定する
+        if self._coltypes is None:
+            self._coltypes = {}        
+        from xlsxx.proxy.styles import (
+            NUMVAL_TYPE_DATETIME, NUMVAL_TYPE_TIME, NUMVAL_TYPE_INT, NUMVAL_TYPE_FLOAT
+        )
+        t = {
+            "i" : NUMVAL_TYPE_INT,
+            "f" : NUMVAL_TYPE_FLOAT,
+            "d" : NUMVAL_TYPE_DATETIME,
+            "t" : NUMVAL_TYPE_TIME,
+            "_" : NUMVAL_TYPE_INT,
+            "-" : NUMVAL_TYPE_INT,
+        }.get(type.lower())
+        if t is None:
+            raise ValueError('[I]nt/[F]loat/[D]atetime/[T]ime/_のいずれかを指定してください')
+        self._coltypes[columnref] = t
+
+    @property
+    def strmap(self):
+        return self._strmap
+
+    @property
+    def default_value(self):
+        if self.asvalues:
+            return None
+        else:
+            return ""
     
+    @property
+    def column_number_types(self):
+        return self._coltypes
+
 
 #
 # 即座に値を読み書きする関数
 #
-def read_sheet_vertical(sheet, start, tailcolumn, tailrow=-1, *, sequence=False, nofetch=False):
+def read_sheet_rows(sheet, start, tailcolumn, tailrow=-1, *, readingdef:ReadingCells=None):
     """
     シートから縦方向に値を読みだす
     Params:
@@ -539,22 +601,26 @@ def read_sheet_vertical(sheet, start, tailcolumn, tailrow=-1, *, sequence=False,
     Returns:
         List[List[Str]]: 文字列型の値が列の数だけ入った行のリスト
     """
-    if nofetch:
-        strmap = None
-    else:
-        strmap = sheet.workbook.part.fetch_textmap()
+    if not readingdef.nofetch:
+        readingdef.set_strmap(sheet.workbook.part.fetch_textmap())
     
     from xlsxx.coord import get_range_coord
     (startrow, startcolumn), (tailrow, tailcolumn) = get_range_coord(start, (tailrow, tailcolumn))
-    texts = sheet.get_range_text((startrow, startcolumn), (tailrow, tailcolumn), strmap=strmap)
+    values = get_range_values(
+        sheet, (startrow, startcolumn), (tailrow, tailcolumn), readingdef=readingdef
+        )
     rows = []
     i = 0
-    while i < len(texts):
-        row = ["" for _ in range(tailcolumn-startcolumn+1)]
+    #
+    sequential = readingdef.sequential
+    default_value = readingdef.default_value
+    while i < len(values):
+        row = [default_value for _ in range(tailcolumn-startcolumn+1)]
         for j in range(len(row)):
-            value, _ref = texts[i+j]
+            value, _ref = values[i+j]
             row[j] = value
-        if sequence and all(len(x) == 0 for x in row):
+        if sequential and all(x == default_value for x in row):
+            # 空の行が来たら読み込みを中止する
             break
         i += (j + 1)
         rows.append(row)
