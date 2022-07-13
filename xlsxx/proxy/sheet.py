@@ -303,7 +303,7 @@ class Worksheet(ElementProxy):
             List[Tuple[Str, Str]]: セル文字列、セル参照のタプルのリスト
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
-        return get_range_values(self, p1, p2, readingdef=readingdef)
+        return get_range_values(self, p1, p2, readingdef or ReadingCells())
 
     def vertical_range(self, lefttop, length=None):
         """
@@ -329,7 +329,7 @@ class Worksheet(ElementProxy):
         """
         r1, c1 = get_coord(lefttop)
         tail, stop = _vertical_tail(self, (r1, c1), length)
-        return get_range_values(self, (r1, c1), (tail, c1), readingdef=readingdef)
+        return get_range_values(self, (r1, c1), (tail, c1), readingdef or ReadingCells())
         
     def horizontal_range(self, lefttop, length=None):
         """
@@ -355,7 +355,7 @@ class Worksheet(ElementProxy):
         """
         r1, c1 = get_coord(lefttop)
         tail, stop = _horizontal_tail(self, (r1, c1), length)
-        return get_range_values(self, (r1, c1), (r1, tail), readingdef=readingdef)    
+        return get_range_values(self, (r1, c1), (r1, tail), readingdef or ReadingCells())    
     
     #
     # 書き込み
@@ -606,9 +606,7 @@ def read_sheet_rows(sheet, start, tailcolumn, tailrow=-1, *, readingdef:ReadingC
     
     from xlsxx.coord import get_range_coord
     (startrow, startcolumn), (tailrow, tailcolumn) = get_range_coord(start, (tailrow, tailcolumn))
-    values = get_range_values(
-        sheet, (startrow, startcolumn), (tailrow, tailcolumn), readingdef=readingdef
-        )
+    values = get_range_values(sheet, (startrow, startcolumn), (tailrow, tailcolumn), readingdef or ReadingCells())
     rows = []
     i = 0
     #

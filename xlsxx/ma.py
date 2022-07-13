@@ -96,7 +96,7 @@ class ExcelFile(OpcPackageFile):
         """
         return self.load()
     
-    def read_v(self, start, tailcolumn, tailrow=-1, sequential=True):
+    def read_v(self, start, tailcolumn, tailrow=-1, sequential=True, as_values=False):
         """ @task
         縦方向に値を読んで返す。
         Params:
@@ -108,7 +108,7 @@ class ExcelFile(OpcPackageFile):
             Tuple[Tuple[Str]]:
         """
         from xlsxx.proxy.sheet import read_sheet_rows
-        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingdef=ReadingCells(sequential=sequential))
+        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingdef=ReadingCells(sequential=sequential, as_values=as_values))
 
     def read_columns(self, start, columns, tailrow=-1, sequential=True):
         """ @task
