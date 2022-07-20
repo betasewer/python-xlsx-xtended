@@ -37,11 +37,12 @@ class Workbook(ElementProxy):
         ssml:extLst [0..1]    Future Feature Storage Area
     """
 
-    __slots__ = ('_part',)
+    __slots__ = ('_part', '_epoch')
 
     def __init__(self, element, part):
         super(Workbook, self).__init__(element)
         self._part = part
+        self._epoch = None
 
     @property
     def core_properties(self):
@@ -141,5 +142,17 @@ class Workbook(ElementProxy):
     def _copy_to(self, book, *, sheets=None):
         """ このワークブックの内容を別のワークブックにコピーする。 """
         pass
+
+    @property
+    def time_epoch(self):
+        """
+        時刻の初期値を取得する。
+        """
+        return self._part.get_time_epoch()
+
+    @time_epoch.setter
+    def time_epoch(self, name):
+        """ """
+        self._part.set_time_epoch(name)
 
 

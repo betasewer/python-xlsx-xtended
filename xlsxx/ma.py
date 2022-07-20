@@ -170,3 +170,14 @@ class ExcelFile(OpcPackageFile):
             writings.add(coord, val)
         
         sheet.write_cells(writings)
+
+    def time_epoch(self, name):
+        """ @method
+        始原日付・時刻を設定する。
+        Params:
+            name(str): [excel|mac2008excel|libreoffice]
+        Returns:
+            datetime:
+        """
+        self.workbook().time_epoch = name
+    

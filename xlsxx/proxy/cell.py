@@ -61,10 +61,23 @@ class EpochTime:
 
 EPOCH1899 = datetime.datetime(1899, 12, 30) 
 EPOCH1904 = datetime.datetime(1904, 1, 1)   # Excel for mac: 2008 までは1904起点
-WINDOWS_EXCEL_TIME = EpochTime(EPOCH1899, leap1900=True) # 1900年うるう年バグがある
+WINDOWS_EXCEL_TIME = EpochTime(EPOCH1899, leap1900=True) # 1900年をうるう年とするバグがある
 OLD_MAC_EXCEL_TIME = EpochTime(EPOCH1904)
 OTHER_APP_TIME = EpochTime(EPOCH1899)  # LibreOffice
 TARGET_TIME = WINDOWS_EXCEL_TIME
+
+def select_epoch_time(name):
+    if name is None:
+        return TARGET_TIME
+    elif name == "excel":
+        return WINDOWS_EXCEL_TIME
+    elif name == "mac2008excel":
+        return OLD_MAC_EXCEL_TIME
+    elif name == "openoffice":
+        return OTHER_APP_TIME
+    else:
+        raise ValueError(name)
+
 
 """
 """
@@ -263,9 +276,9 @@ def get_cell_value(element, book, shared_strings_map=None, column_number_types=N
         else:
             numtype = get_cell_number_value_type(element, book)
         if numtype == NUMVAL_TYPE_DATETIME: # 数値 - 日付型
-            return get_cell_datetime_value(element)
+            return get_cell_datetime_value(element, book.time_epoch)
         elif numtype == NUMVAL_TYPE_TIME:   # 数値 - 時刻型
-            return get_cell_time_value(element)
+            return get_cell_time_value(element, book.time_epoch)
         elif numtype == NUMVAL_TYPE_FLOAT:  # 数値 - 浮動小数点
             return float(val) 
         elif "." in val:                      # 数値 - 整数

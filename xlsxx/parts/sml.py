@@ -32,6 +32,10 @@ def read_default_xml(filename):
 class SmlSheetMainPart(XmlPart):
     """
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._epoch = None
+
     @property
     def core_properties(self):
         """
@@ -106,6 +110,20 @@ class SmlSheetMainPart(XmlPart):
         ワークブック内の文字列を全て取得する。
         """
         return self._shared_string_part.fetch_text()
+
+    def set_time_epoch(self, value):
+        """
+        時刻の初期値を設定する。
+        """
+        from xlsxx.proxy.cell import select_epoch_time
+        self._epoch = select_epoch_time(value)
+
+    def get_time_epoch(self):
+        """ 
+        時刻の初期値を取得する。
+        """
+        return self._epoch
+
 
 
 #
