@@ -393,20 +393,55 @@ class Worksheet(ElementProxy):
         row = self._element.sheetData._add_row()
         row.r = index + 1
 
-    def new_rows_until(self, rmax):
+    def insert_row(self, posrow, index, *, prev=False):
+        """
+        指定要素の後ろに行を新規作成する。
+        Params:
+            index(int): 0ベース列番号
+        """
+        rownew = self._element.sheetData._new_row()
+        rownew.r = index + 1
+        if prev:
+            posrow.addprevious(rownew)
+        else:
+            posrow.addnext(rownew)
+        return rownew
+
+    def allocate_rows(self, rhead, rtail):
         """
         空の行を後ろに複数追加する。
+        途中に空行があれば埋める。
         Params:
-            rmax(int): 0ベース行番号
+            rhead(int): 0ベース行番号
+            rtail(int): 0ベース行番号
         """
         if self._rows:
-            el_tailrow = self._rows[-1]
-            irow = rowref_to_index(el_tailrow.r)
-            # TODO: 番号が飛んでいる行を埋める
-            for i in range(irow+1, rmax+1):
-                self.add_row(i)
+            elindex = 0
+            nextirow = rhead
+            while elindex < len(self._rows):
+                elrow = self._rows[elindex]
+                irow = rowref_to_index(elrow.r)
+                if irow > rtail:
+                    break
+                elif rhead <= irow:
+                    if irow > nextirow:
+                        # 飛んでいる - 差分を全て要素として追加する
+                        for di in range(nextirow, irow):
+                            self.insert_row(elrow, di, prev=True)
+                        elindex += (irow-nextirow) + 1
+                        nextirow = irow + 1
+                        continue
+                elindex += 1
+            
+            # 残り
+            elrow = self._rows[-1]
+            irow = rowref_to_index(elrow.r)
+            if irow < rtail:
+                for di in range(irow+1, rtail+1):
+                    elrow = self.insert_row(elrow, di)
+        
         else:
-            for i in range(rmax+1):
+            for i in range(rhead, rtail+1):
                 self.add_row(i)
 
     #
@@ -441,8 +476,9 @@ class Worksheet(ElementProxy):
             return
         
         # 必要な行を確保する
-        mrow, _mcol = writings.maxcoord()
-        self.new_rows_until(mrow)        
+        mirow, _icol = writings.mincoord()
+        mxrow, _mcol = writings.maxcoord()
+        self.allocate_rows(mirow, mxrow) 
 
         cellrows = {}
         for cellrow in self._rows:
