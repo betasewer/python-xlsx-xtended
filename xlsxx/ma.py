@@ -7,7 +7,7 @@ from docxx.ma import OpcPackageFile
 
 from xlsxx.parts.sml import SmlSheetMainPart
 from xlsxx.proxy.workbook import Workbook
-from xlsxx.proxy.sheet import ReadingCells, Worksheet
+from xlsxx.proxy.sheet import ReadingCells, Worksheet, read_sheet_rows
 
 
 class ExcelFile(OpcPackageFile):
@@ -108,7 +108,7 @@ class ExcelFile(OpcPackageFile):
             Tuple[Tuple[Str]]:
         """
         from xlsxx.proxy.sheet import read_sheet_rows
-        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingdef=ReadingCells(sequential=sequential, as_values=as_values))
+        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingcells=ReadingCells(sequential=sequential, as_values=as_values))
 
     def read_columns(self, start, columns, tailrow=-1, sequential=True):
         """ @task
@@ -122,13 +122,14 @@ class ExcelFile(OpcPackageFile):
         """
         if not columns:
             raise ValueError("カラム指定が空です")
-        from xlsxx.proxy.sheet import read_sheet_rows
-        startindex = ref_to_coord(start)[1]
+        
         rdef = ReadingCells(sequential=sequential)
+        startindex = ref_to_coord(start)[1]
         for i, col in enumerate(columns, start=startindex):
             rdef.set_column_type(index_to_column(i), col)
+        
         tailcolumn = startindex + len(columns) - 1
-        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingdef=rdef)
+        return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingcells=rdef)
 
     def write_v(self, start, rows, *, as_values=False):
         """ @task

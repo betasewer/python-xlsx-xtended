@@ -291,7 +291,7 @@ class Worksheet(ElementProxy):
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
         return CellRange(self, p1, p2)
     
-    def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, readingdef=None):
+    def get_range_text(self, lefttop, rightbottom=None, *, rownum=None, columnnum=None, readingcells=None):
         """
         矩形のセル範囲のテキストを取得する。
         Params:
@@ -303,7 +303,7 @@ class Worksheet(ElementProxy):
             List[Tuple[Str, Str]]: セル文字列、セル参照のタプルのリスト
         """
         p1, p2 = get_range_coord(lefttop, rightbottom, rownum=rownum, columnnum=columnnum)
-        return get_range_values(self, p1, p2, readingdef or ReadingCells())
+        return get_range_values(self, p1, p2, readingcells or ReadingCells())
 
     def vertical_range(self, lefttop, length=None):
         """
@@ -318,7 +318,7 @@ class Worksheet(ElementProxy):
         tail, stop = _vertical_tail(self, (r1, c1), length)
         return self.range((r1, c1), (tail, c1))
     
-    def get_vertical_range_text(self, lefttop, length=None, *, readingdef=None):
+    def get_vertical_range_text(self, lefttop, length=None, *, readingcells=None):
         """
         開始点から縦1列の範囲のテキストを取得する。
         Params:
@@ -329,7 +329,7 @@ class Worksheet(ElementProxy):
         """
         r1, c1 = get_coord(lefttop)
         tail, stop = _vertical_tail(self, (r1, c1), length)
-        return get_range_values(self, (r1, c1), (tail, c1), readingdef or ReadingCells())
+        return get_range_values(self, (r1, c1), (tail, c1), readingcells or ReadingCells())
         
     def horizontal_range(self, lefttop, length=None):
         """
@@ -344,7 +344,7 @@ class Worksheet(ElementProxy):
         tail = _horizontal_tail(self, (r1, c1), length)
         return self.range((r1, c1), (r1, tail))
     
-    def get_horizontal_range_text(self, lefttop, length=None, *, readingdef=None):
+    def get_horizontal_range_text(self, lefttop, length=None, *, readingcells=None):
         """
         開始点から横1行の範囲のテキストを取得する。
         Params:
@@ -355,7 +355,7 @@ class Worksheet(ElementProxy):
         """
         r1, c1 = get_coord(lefttop)
         tail, stop = _horizontal_tail(self, (r1, c1), length)
-        return get_range_values(self, (r1, c1), (r1, tail), readingdef or ReadingCells())    
+        return get_range_values(self, (r1, c1), (r1, tail), readingcells or ReadingCells())    
     
     #
     # 書き込み
@@ -494,6 +494,9 @@ class Worksheet(ElementProxy):
 
     def writing_cells(self, *, as_values=False):
         return WritingCells(as_values=as_values)
+
+    def reading_cells(self, *, sequential=False, nofetch=False, as_values=False):
+        return ReadingCells(sequential=sequential, nofetch=nofetch, as_values=as_values)
     
 
 """
@@ -626,7 +629,7 @@ class ReadingCells:
 #
 # 即座に値を読み書きする関数
 #
-def read_sheet_rows(sheet, start, tailcolumn, tailrow=-1, *, readingdef:ReadingCells=None):
+def read_sheet_rows(sheet, start, tailcolumn, tailrow=-1, *, readingcells:ReadingCells=None):
     """
     シートから縦方向に値を読みだす
     Params:
@@ -637,17 +640,17 @@ def read_sheet_rows(sheet, start, tailcolumn, tailrow=-1, *, readingdef:ReadingC
     Returns:
         List[List[Str]]: 文字列型の値が列の数だけ入った行のリスト
     """
-    if not readingdef.nofetch:
-        readingdef.set_strmap(sheet.workbook.part.fetch_textmap())
+    if not readingcells.nofetch:
+        readingcells.set_strmap(sheet.workbook.part.fetch_textmap())
     
     from xlsxx.coord import get_range_coord
     (startrow, startcolumn), (tailrow, tailcolumn) = get_range_coord(start, (tailrow, tailcolumn))
-    values = get_range_values(sheet, (startrow, startcolumn), (tailrow, tailcolumn), readingdef or ReadingCells())
+    values = get_range_values(sheet, (startrow, startcolumn), (tailrow, tailcolumn), readingcells or ReadingCells())
     rows = []
     i = 0
     #
-    sequential = readingdef.sequential
-    default_value = readingdef.default_value
+    sequential = readingcells.sequential
+    default_value = readingcells.default_value
     while i < len(values):
         row = [default_value for _ in range(tailcolumn-startcolumn+1)]
         for j in range(len(row)):

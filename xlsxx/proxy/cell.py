@@ -557,7 +557,7 @@ class CellRange:
 #
 #
 #
-def get_range_values(sheet, lefttop, rightbottom, readingdef=None):
+def get_range_values(sheet, lefttop, rightbottom, readingcells=None):
     """
     Params:
         sheet(Proxy): ワークシート
@@ -570,10 +570,10 @@ def get_range_values(sheet, lefttop, rightbottom, readingdef=None):
     book = sheet.workbook
     rlast = r2 + 1 if r2 >= 0 else None
     #
-    asvalues = readingdef.asvalues
-    default_value = readingdef.default_value
-    strmap = readingdef.strmap
-    colnumtypes = readingdef.column_number_types
+    asvalues = readingcells.asvalues
+    default_value = readingcells.default_value
+    strmap = readingcells.strmap
+    colnumtypes = readingcells.column_number_types
     #
     for row in sheet.element.sheetData.row_lst[r1:rlast]:
         cs = get_row_range_cell(row, c1, c2)
