@@ -420,13 +420,18 @@ class Worksheet(ElementProxy):
             nextirow = rhead
             while elindex < len(self._rows):
                 elrow = self._rows[elindex]
-                irow = rowref_to_index(elrow.r)
+                irow = rowref_to_index(elrow.r) # 0ベース行番号に変換
                 if irow > rtail:
+                    # 後ろに要素の空きがある場合に対応
+                    for di in range(nextirow, rtail+1): # rtailにも要素が存在しないので含める
+                        self.insert_row(elrow, di, prev=True)
+                    elindex += (rtail-nextirow+1) + 1
+                    nextirow = rtail + 1
                     break
                 elif rhead <= irow:
                     if irow > nextirow:
                         # 飛んでいる - 差分を全て要素として追加する
-                        for di in range(nextirow, irow):
+                        for di in range(nextirow, irow): # irowには要素が存在するので含めない
                             self.insert_row(elrow, di, prev=True)
                         elindex += (irow-nextirow) + 1
                         nextirow = irow + 1
