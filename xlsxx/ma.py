@@ -1,3 +1,4 @@
+
 from typing import List
 
 from xlsxx.api import open_xlsx
@@ -97,7 +98,7 @@ class ExcelFile(OpcPackageFile):
         return self.load()
     
     def read_v(self, start, tailcolumn, tailrow=-1, sequential=True, as_values=False):
-        """ @task
+        """ @task nospirit
         縦方向に値を読んで返す。
         Params:
             start(str): 開始セル参照
@@ -111,7 +112,7 @@ class ExcelFile(OpcPackageFile):
         return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingcells=ReadingCells(sequential=sequential, as_values=as_values))
 
     def read_columns(self, start, columns, tailrow=-1, sequential=True):
-        """ @task
+        """ @task nospirit
         値のタイプを指定して値を読んで返す。
         Params:
             start(str): 開始セル参照
@@ -132,7 +133,7 @@ class ExcelFile(OpcPackageFile):
         return read_sheet_rows(self.cursheet(), start, tailcolumn, tailrow, readingcells=rdef)
 
     def write_v(self, start, rows, *, as_values=False):
-        """ @task
+        """ @task nospirit
         縦方向に値を書き込む。
         Params:
             start(str): 開始セル参照
@@ -154,7 +155,7 @@ class ExcelFile(OpcPackageFile):
         sheet.write_cells(writings)
 
     def write_cells(self, coord_text_dict, *, as_values=False):
-        """ @task
+        """ @task nospirit
         それぞれのセルに値を書き込む。
         Params:
             coord_text_dict(Any): 座標参照と値の組み合わせの辞書
@@ -174,11 +175,11 @@ class ExcelFile(OpcPackageFile):
 
     def time_epoch(self, name):
         """ @method
-        始原日付・時刻を設定する。
+        グローバルな始原日付・時刻のシステムを設定する。
         Params:
             name(str): [excel|mac2008excel|libreoffice]
         Returns:
-            datetime:
+            Datetime:
         """
         self.workbook().time_epoch = name
     
