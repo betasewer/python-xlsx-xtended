@@ -7,9 +7,54 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+from typing import TYPE_CHECKING
 import re
 
 from docxx.shared import ElementProxy
+
+if TYPE_CHECKING:
+    from xlsxx.oxml.styles import CT_Xf, CT_CellAlignment
+    from xlsxx.proxy.sheet import Worksheet
+
+
+class CellAlignment(ElementProxy):
+    """
+    Represents the alignment properties of a cell in a spreadsheet.
+    """
+    def __init__(self, element):
+        super().__init__(element)
+    
+    @property
+    def horizontal(self):
+        return self._element.horizontal
+    
+    @property
+    def vertical(self):
+        return self._element.vertical
+    
+    @property
+    def wrap_text(self):
+        return self._element.wrapText
+    
+    @property
+    def indent(self):
+        return self._element.indent
+    
+    @property
+    def reading_order(self):
+        return self._element.readingOrder
+    
+    @horizontal.setter
+    def horizontal(self, value):
+        self._element.horizontal = value
+
+    @vertical.setter
+    def vertical(self, value):
+        self._element.vertical = value
+
+    @wrap_text.setter
+    def wrap_text(self, value):
+        self._element.wrapText = value
 
 
 class NumberFormat(ElementProxy):
@@ -112,15 +157,36 @@ class CellStyleName(ElementProxy):
 """
 """
 class CellFormat(ElementProxy):
-    def __init__(self, element, ssheet):
+    def __init__(self, element, stylesheet=None, index=None):
         super().__init__(element)
-        self._ss = ssheet
+        self._index: int = index
+        self._ss: 'StyleSheet' = stylesheet
 
+    @property
+    def index(self):
+        """
+        The index of this cell format in the style sheet.
+        """
+        if self._index is None:
+            raise ValueError("Index is not set for CellFormat")
+        return self._index
+    
+    @property
+    def alignment(self) -> CellAlignment:
+        """
+        The alignment of this cell format.
+        """
+        if self._element.alignment is None:
+            self._element._add_alignment()
+        return CellAlignment(self._element.alignment)
+    
     @property
     def number_format(self):
         id = self._element.numFmtId
         if id is None:
             return None
+        if self._ss is None:
+            raise ValueError("StyleSheet is not set for CellFormat")
         return self._ss.get_number_format_by_id(id)
     
     @property
@@ -128,6 +194,8 @@ class CellFormat(ElementProxy):
         id = self._element.numFmtId
         if id is None:
             return None
+        if self._ss is None:
+            raise ValueError("StyleSheet is not set for CellFormat")
         fmt = self._ss.get_number_format_by_id(id)
         if fmt is not None:
             return numfmt_lib.detect_value_type(fmt.code)
@@ -142,6 +210,8 @@ class CellFormat(ElementProxy):
         idx = self._element.fontId
         if idx is None:
             return None
+        if self._ss is None:
+            raise ValueError("StyleSheet is not set for CellFormat")
         return self._ss.get_font(idx)
 
     @property
@@ -157,6 +227,8 @@ class CellFormat(ElementProxy):
         idx = self._element.xfId
         if idx is None:
             return None
+        if self._ss is None:
+            raise ValueError("StyleSheet is not set for CellFormat")
         return self._ss.get_basic_format(idx)
     
     @property
@@ -200,6 +272,13 @@ class StyleSheet(ElementProxy):
     def style_names(self):
         return [CellStyleName(x) for x in self._element.cellStyles.cellStyle_lst]
     
+    def add_format(self):
+        """ 新しい空のセルフォーマットを追加する """
+        cellXfs = self._element.cellXfs
+        xf = cellXfs.add_xf()
+        newid = len(cellXfs.xf_lst)-1        
+        return CellFormat(xf, self, index=newid)
+
     @property
     def part(self):
         """

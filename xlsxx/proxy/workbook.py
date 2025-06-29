@@ -7,8 +7,13 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-
+from typing import TYPE_CHECKING
 from docxx.shared import ElementProxy
+
+if TYPE_CHECKING:
+    from xlsxx.proxy.shared_strings import SharedStrings
+    from xlsxx.proxy.styles import StyleSheet
+    from xlsxx.oxml.sheet import CT_Worksheet
 
 
 """
@@ -113,15 +118,15 @@ class Workbook(ElementProxy):
         return [self.sheet(entry=el) for el in self._sheet_entries]
     
     @property
-    def _sheet_entries(self):
+    def _sheet_entries(self) -> list['CT_Worksheet']:
         return self._element.sheets.sheet_lst
     
     @property
-    def shared_strings(self):
+    def shared_strings(self) -> 'SharedStrings':
         return self._part.shared_strings
     
     @property
-    def style_sheet(self):
+    def style_sheet(self) -> 'StyleSheet':
         return self._part.style_sheet
     
     @property
