@@ -3,10 +3,11 @@
 """
 |Document| and closely related objects
 """
-
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+
+from typing import TYPE_CHECKING
 from collections import defaultdict
 
 from docxx.shared import ElementProxy, AttributeProperty
@@ -16,6 +17,9 @@ from xlsxx.coord import (
     get_coord, get_range_coord, modify_range_ref, rowref_to_index, index_to_rowref
 )
 from xlsxx.proxy.cell import Cell, CellRow, CellRange, get_range_values
+
+if TYPE_CHECKING:
+    from xlsxx.ma import ExcelWriting
 
 """
 """
@@ -162,10 +166,10 @@ class Worksheet(ElementProxy):
     
     @property
     def _columns(self):
-        cols = self._element.cols_lst
-        if not cols:
-            return []
-        return cols[0].col_lst # colsの全要素を結合する？
+        for cols in self._element.cols_lst:
+            if not cols.col_lst:
+                continue
+            yield from cols.col_lst
     
     @property
     def columns(self):
@@ -469,20 +473,22 @@ class Worksheet(ElementProxy):
                 if ci < len(row):
                     cell.text = row[ci]
 
-    def write_cells(self, writings):
+    def write_cells(self, writings: 'ExcelWriting'):
         """
         座標とテキストの組のリストから一気にセルへの書き込みを行う。
         Params:
-            writings(WritingCells): 座標とテキストの組のリスト
+            writings(ExcelWriting): 座標とテキストの組のリスト
         """
-        if not isinstance(writings, WritingCells):
-            raise TypeError("'writing' must be WritingCells instance")
+        from xlsxx.ma import ExcelWriting
+        if not isinstance(writings, ExcelWriting):
+            raise TypeError("'writing' must be ExcelWriting instance")
+        
         if writings.empty():
             return
         
         # 必要な行を確保する
-        mirow, _icol = writings.mincoord()
-        mxrow, _mcol = writings.maxcoord()
+        mirow, micol = writings.mincoord()
+        mxrow, mxcol = writings.maxcoord()
         self.allocate_rows(mirow, mxrow) 
 
         cellrows = {}
@@ -491,18 +497,36 @@ class Worksheet(ElementProxy):
             if writings.has_row(rowindex):
                 cellrows[rowindex] = CellRow(cellrow, self)
 
-        for row, coltexts in writings.rows():
-            cellrow = cellrows.get(row)
+        i = 0
+        for row, coltexts in writings.get_rows():
+            cellrow: CellRow = cellrows.get(row)
             if cellrow is None:
                 raise ValueError("Row '{}' is not allocated".format(index_to_rowref(row)))
-            cellrow.write(coltexts, as_values=writings.as_values())
+            
+            newheight = writings.get_row_height(i)
+            cellrow.set_height(newheight)
+            cellrow.write(coltexts, styles_bits=writings.cell_styles_bits(i))
+            i += 1
 
-    def writing_cells(self, *, as_values=False):
-        return WritingCells(as_values=as_values)
+        # 
+        if writings.columns_count() is not None:
+            # 列は既存のものを考慮せず、常に必要な数を新規追加する
+            cs = list(self._columns)
+            if len(cs) == 0:
+                for i, col in self._new_columns(writings.columns_count(), micol):
+                    width = writings.get_column_width(i, col)
+                    if width is not None:
+                        col.width = width
 
-    def reading_cells(self, *, sequential=False, nofetch=False, as_values=False):
-        return ReadingCells(sequential=sequential, nofetch=nofetch, as_values=as_values)
-    
+
+    def _new_columns(self, count, icolstart):
+        cols = self._element._add_cols()
+        for i in range(count):
+            col = cols._add_col()
+            col.min = icolstart+i+1 # 1ベースの列番号
+            col.max = icolstart+i+1
+            yield i, col
+        
 
 """
 """
@@ -542,42 +566,6 @@ class ComlumnDef:
     def __init__(self, ref, type):
         self.ref = ref
         self.type = type
-    
-#
-#
-#
-class WritingCells:
-    def __init__(self, *, as_values=False):
-        self._rows = defaultdict(list)
-        self._mincoord = None
-        self._maxcoord = None
-        self._asvalues = as_values
-
-    def empty(self):
-        return len(self._rows) == 0
-
-    def add(self, coord, value):
-        if not isinstance(coord, tuple):
-            raise TypeError("coord must be tuple")
-        row, col = coord
-        self._rows[row].append((col, value))
-        self._mincoord = (row, col) if self._mincoord is None else min(self._mincoord, (row, col)) 
-        self._maxcoord = (row, col) if self._maxcoord is None else max(self._maxcoord, (row, col))
-
-    def mincoord(self):
-        return self._mincoord
-    
-    def maxcoord(self):
-        return self._maxcoord
-    
-    def rows(self):
-        return self._rows.items()
-
-    def has_row(self, index):
-        return index  in self._rows
-
-    def as_values(self):
-        return self._asvalues
 
 
 class ReadingCells:

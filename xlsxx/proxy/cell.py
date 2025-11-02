@@ -167,25 +167,22 @@ class CellRow(ElementProxy):
         cell.r = modify_ref("", row=self.ref, col=index_to_column(column))
         return cell, cells
 
-    def write(self, column_values, *, as_values=False):
+    def write(self, column_values, *, styles_bits=None):
         """
         行にテキストを一度に書き込む
         Params:
             column_values(List[Tuple[int, str]]): カラムとテキストの組のリスト
-            as_values(bool): テキスト型ではなく、値型を保存して書き込む
+            styles_bits(Dict[int, Tuple[int:style id, bool: asvalues]]): スタイルID+値型書き込みフラグの組と、カラム番号のマップ
         """
         if not column_values:
             return
         
-        if as_values:
-            setter = set_cell_value
-        else:
-            setter = set_cell_text
-
         book = self.workbook
         cells = self._element.c_lst
         icell = 0
         for col, val in sorted(column_values, key=lambda x:x[0]):
+            styles = styles_bits.get(col) if styles_bits else None
+
             # 書き込み先セルを順に探す
             destcell = None
             while icell < len(cells):
@@ -202,8 +199,29 @@ class CellRow(ElementProxy):
                 destcell, cells = self._add_cell(col, INSERTCELL_APPEND, cells)
             
             # 書き込む
-            setter(destcell, book, val)
+            if styles is not None:
+                if len(styles) > 0 and styles[1]:
+                    set_cell_value(destcell, book, val)
+                else:
+                    set_cell_text(destcell, book, val)
+
+                style_id = styles[0]
+                destcell.s = style_id # スタイルIDを設定
+            else:
+                set_cell_text(destcell, book, val)
+
+    def set_height(self, value):
+        """
+        行の高さを変更する。
+        Params:
+            value(float|int): 新しい行の高さ
+        Returns:
+            float: 新しい行の高さ
+        """
+        self._element.ht = value
+        return self._element.ht
     
+
 class INSERTCELL_APPEND:
     pass
 
